@@ -88,12 +88,10 @@ export class Login {
                 "login refresh_token not found",
                 req.body.refresh_token
               );
-              res
-                .status(401)
-                .json({
-                  msg: "Invalid RefreshToken!",
-                  error: "Invalid RefreshToken",
-                });
+              res.status(401).json({
+                msg: "Invalid RefreshToken!",
+                error: "Invalid RefreshToken",
+              });
             } else {
               var loginData: LoginData = refreshToken.loginData;
               var accessTokenCreate: AccessTokenCreateOptions = {
@@ -201,12 +199,10 @@ export class Login {
       ) {
         res.locals.accessToken = { refresh_token: req.query.refresh_token };
       } else {
-        res
-          .status(401)
-          .json({
-            msg: "User Not Logged In!",
-            error: "Authorization Header Missing",
-          });
+        res.status(401).json({
+          msg: "User Not Logged In!",
+          error: "Authorization Header Missing",
+        });
         return;
       }
     }
