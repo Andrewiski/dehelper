@@ -1,6 +1,5 @@
 import { EventEmitter } from "events";
 
-
 namespace DeHelper {
   /**
    * An events map is an interface that maps event names to their value, which
@@ -170,9 +169,9 @@ namespace DeHelper {
      * @param event Event name
      * @returns Array of listeners subscribed to `event`
      */
-    listeners<Ev extends ReservedOrUserEventNames<ReservedEvents, ListenEvents>>(
-      event: Ev
-    ): ReservedOrUserListener<ReservedEvents, ListenEvents, Ev>[] {
+    listeners<
+      Ev extends ReservedOrUserEventNames<ReservedEvents, ListenEvents>
+    >(event: Ev): ReservedOrUserListener<ReservedEvents, ListenEvents, Ev>[] {
       return super.listeners(event) as ReservedOrUserListener<
         ReservedEvents,
         ListenEvents,
