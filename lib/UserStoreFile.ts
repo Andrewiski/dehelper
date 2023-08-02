@@ -5,7 +5,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { v4 as uuidv4 } from "uuid";
 //import 'nosql.js';
-const NoSQL = require("nosql");
+import NoSQL from "nosql/index.js";
+//const NoSQL = require("nosql");
 import { ErrorMessage } from "./ErrorMessage";
 import type {
   RefreshTokenCreateOptions,
