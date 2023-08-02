@@ -1,6 +1,6 @@
 {
     "name": "@andrewiski/dehelper",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "Node.js Helper Library Including User Auth Middleware with Bootstrap UI",
     "main": "index.js",
     "license": "GPL-3.0-or-later",
