@@ -4,7 +4,7 @@
 
 var DeHelper = null;
 if (process.env.USELOCALLIB === "true"){
-    DeHelper = require('../../dist/dehelper.js');
+    DeHelper = require('../../dist/index.js');
 }else{
     DeHelper = require('dehelper');
 }
@@ -16,6 +16,7 @@ const express = require('express');
 const favicon = require('serve-favicon');
 const cookieParser = require('cookie-parser');
 const fs = require('fs');
+const debug = require('debug')("DeHelperExample");
 
 var config = {
     "httpport": 43080,
@@ -33,7 +34,7 @@ var app = express();
 //This must be the first App Use for Logging of every call.
 //This function will get called on every request and if useHttpsClientCertAuth is turned on only allow request with a client cert
 app.use(function (req, res, next) {    
-    console.log(appLogName, "browser", 'debug',  "url:" + req.originalUrl);
+    debug( "browser", 'debug',  "url:" + req.originalUrl);
     next();
     return;
 })
@@ -50,17 +51,24 @@ app.use(cookieParser());
 
 let deHelperLoginConfig = {}
 
-var deHelperLogin = new DeHelper.Login(deHelperLoginConfig);
+var deHelper = DeHelper(deHelperLoginConfig);
 
-app.use(deauth.expressMiddleWare);
+//app.use(deauth.expressMiddleWare);
+
+
+app.use(function (req, res, next) {
+    var connInfo = getConnectionInfo(req);
+    debug("browser", 'debug',  "path:" + req.path + ", ip:" + connInfo.ip + ", port:" + connInfo.port + ", ua:" + connInfo.ua);
+    next();  
+})
 
 
 app.use('/admin/*', function (req, res, next) {
 
-    if(req.loc)
+    //if(req.loc)
 
     var connInfo = getConnectionInfo(req);
-    console.log(appLogName, "browser", 'debug',  "path:" + req.path + ", ip:" + connInfo.ip + ", port:" + connInfo.port + ", ua:" + connInfo.ua);
+    debug("browser", 'debug',  "path:" + req.path + ", ip:" + connInfo.ip + ", port:" + connInfo.port + ", ua:" + connInfo.ua);
     next();
     return;
 })
@@ -82,11 +90,13 @@ var http_srv = null;
 
 try {
     http_srv = http.createServer(app).listen(config.httpport, function () {
-        console.log(appLogName, "app", 'info', 'Express server listening on http port ' + config.httpport);
+        console.log("app", 'info', 'Express server listening on http port ' + config.httpport);
+        debug("app", 'info', 'Express server listening on http port ' + config.httpport);
     });
-    io.attach(http_srv);
+    deHelper.attach(http_srv);
 } catch (ex) {
-    console.log(appLogName, "app", 'error', 'Failed to Start Express server on http port ' + config.httpport, ex);
+    console.log("app", 'error', 'Failed to Start Express server on http port ' + config.httpport, ex);
+    debug("app", 'error', 'Failed to Start Express server on http port ' + config.httpport, ex);
 }
 
 
