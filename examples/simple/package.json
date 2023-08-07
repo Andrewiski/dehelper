@@ -1,0 +1,31 @@
+{
+    "name": "@andrewiski/dehelperexample",
+    "version": "0.0.2",
+    "description": "Dehelper Example",
+    "main": "index.js",
+    "license": "GPL-3.0-or-later",
+    "private": false,
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/andrewiski/dehelper"
+    },
+    "author": {
+        "name": "Andrew DeVries",
+        "email": "adevries@digitalexample.com",
+        "url": "https://digitalexample.com"
+    },
+    "engines": {
+        "node": ">=16.0"
+    },
+    "scripts": {
+        "start": "node server.js"
+    },
+    "dependencies": {
+        "@andrewiski/dehelper": "^0.0.2",
+        "cookie-parser": "^1.4.6",
+        "debug": "^4.3.2",
+        "express": "^4.17.13",
+        "extend": "^3.0.2",
+        "serve-favicon": "^2.5.0"
+    }
+}

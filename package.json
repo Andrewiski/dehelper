@@ -2,9 +2,22 @@
     "name": "@andrewiski/dehelper",
     "version": "0.0.2",
     "description": "Node.js Helper Library Including User Auth Middleware with Bootstrap UI",
-    "main": "index.js",
     "license": "GPL-3.0-or-later",
     "private": false,
+    "files": [
+        "dist/",
+        "wrapper.mjs",
+        "!**/*.tsbuildinfo"
+      ],
+    "directories": {
+        "doc": "docs/",
+        "example": "example/",
+        "lib": "lib/",
+        "test": "test/"
+    },
+    "type": "commonjs",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
     "repository": {
         "type": "git",
         "url": "https://github.com/andrewiski/dehelper"
@@ -17,11 +30,9 @@
     "engines": {
         "node": ">=16.0"
     },
-    "types": "index.d.ts",
     "scripts": {
         "compile": "rimraf ./dist && tsc",
-        "test": "npm run format:check && npm run compile && npm run test:unit",
-        "test:full": "npm run format:check && npm run compile && npm run test:types && npm run test:unit",
+        "test": "npm run format:check && npm run compile && npm run test:types && npm run test:unit",
         "test:types": "tsd",
         "test:unit": "nyc mocha --require ts-node/register --reporter spec --slow 200 --bail --timeout 10000 test/index.ts",
         "format:check": "prettier --check \"lib/**/*.ts\" \"test/**/*.ts\"",
@@ -50,5 +61,8 @@
         "ts-node": "^10.2.1",
         "tsd": "^0.21.0",
         "typescript": "^4.4.2"
-    }
+    },
+    "tsd": {
+        "directory": "test"
+      }
 }
