@@ -6,7 +6,7 @@
     "configurations": [
         
         {
-            "env": {"DEBUG":"DeHelper:*", "USELOCALLIB":"true", },
+            "env": {"DEBUG":"DeHelperExample,DeHelper:*", "USELOCALLIB":"true", },
             "command": "node examples/simple/server.js",
             "name": "LocalDebug Run node examples/simple/server.js",
             "request": "launch",
