@@ -2,19 +2,19 @@
 (function ($) {
 
     /*
-    * deauth  1.0
+    * dehelper  1.0
     * Copyright (c) 2023 Digital Example
-    * Date: 2023-05-01
+    * Date: 2023-08-01
     */
 
-    /** The root class for the deauth framework
-    @name deauth
-    @class This is the root class for the deauth framework
+    /** The root class for the dehelper framework
+    @name dehelper
+    @class This is the root class for the dehelper framework
     */
-    $.deauth = $.deauth || {};
+    $.dehelper = $.dehelper || {};
 
-    // Extend the deauth class/namespace
-    $.extend($.deauth, {
+    // Extend the dehelper class/namespace
+    $.extend($.dehelper, {
 
         
         options:{
@@ -26,71 +26,72 @@
                 isUserLoggedIn: false,
                 accessToken: null,
                 userInfo: null,
+            },
+            settings: {
+                system: {},
+                user: {}
+            },
+            menu: {
+                menuItems: [],
+                subMenuItems: [],
+                currentMenu: null
             }
         },
-        
-        
-
         appInit: function (options) {
             var deferred = $.Deferred();
-
-            //$.deauth.logToConsole("$.deauth.appInit()");
-
+            //$.dehelper.logToConsole("$.dehelper.appInit()");
             try {
-
                 let defaultOptions ={
                     debug: true,
                     onAutoLoginComplete: null,
                     onLoginComplete: null,
                     onLogoutComplete: null,
-                    baseUrl: "/deauth/",
+                    baseUrl: "/dehelper/",
                     templateLogin: 'templates/login.htm', 
                     templateModal: 'templates/default.modal.htm',
-                    templateError: 'templates/error.htm' 
+                    templateError: 'templates/error.htm', 
+                    templateMenuItems: 'templates/menuItems.htm',
                 }
 
                 if(options){
-                    $.extend($.deauth.options, options, defaultOptions);
+                    $.extend($.dehelper.options, options, defaultOptions);
                 }
                 //added by Andy so we only Init Once   05/29/2015
-                if ($.deauth.common.isInited === false) {
+                if ($.dehelper.common.isInited === false) {
                     $.when(
                         //We want to auto login the user if possible using a RefreshToken
-                        $.deauth.autoLogin(),
+                        $.dehelper.autoLogin()
 
                     ).done(function (x, data) {
-                        //$.deauth.logToConsole("$.deauth.appInit() DONE");
-
+                        //$.dehelper.logToConsole("$.dehelper.appInit() DONE");
                         $.when(
-                            
+                            $.dehelper.getMenuItems(),    
+                            $.dehelper.loadPageContent()
                         ).done(function (x, data) {
-                            $.deauth.common.isInited = true;
-                            
+                            $.dehelper.common.isInited = true;
                             deferred.resolve();
                         }).fail(function (result) {
                             deferred.reject(result);
                         })
-                            .fail(function (result) {
-                                deferred.reject(result);
-                            });
+                    })
+                    .fail(function (result) {
+                        deferred.reject(result);
                     });
+                    ;
                 } else {
                     deferred.resolve();
                 }
             } catch (ex) {
-                $.deauth.logToConsole('Fatal Error $.deauth.appinit: ' + ex.message)
-                var objError = $.deauth.createErrorFromScriptException(ex);
+                $.dehelper.logToConsole('Fatal Error $.dehelper.appinit: ' + ex.message)
+                var objError = $.dehelper.createErrorFromScriptException(ex);
                 deferred.reject(objError);
             }
             return deferred.promise();
         },
 
-
-
-
         logToConsole: function (msg) {
             // Is a console defined?
-            if ($.deauth && $.deauth.isClientSideDebugging && $.deauth.isClientSideDebugging()) {
+            if ($.dehelper && $.dehelper.isClientSideDebugging && $.dehelper.isClientSideDebugging()) {
                 if (window.console && console.log) {
                     var isChrome = navigator.userAgent.indexOf("Chrome") !== -1;
                     if (isChrome) {
@@ -139,17 +140,19 @@
 
         getTemplate: function (templateName) {
             var deferred = $.Deferred()
-            var myTemplate = $.deauth.common.templateCache[templateName];
-            let url = $.deauth.options.baseApiUrl ;
+            var myTemplate = $.dehelper.common.templateCache[templateName];
+            let url = $.dehelper.options.baseUrl ;
             switch(templateName){
                 case "login":
-                    url = url + $.deauth.options.templateLogin;
+                    url = url + $.dehelper.options.templateLogin;
                     break;
                 case "modal":
-                    url = url + $.deauth.options.templateModal;
+                    url = url + $.dehelper.options.templateModal;
                     break;
                 case "error":
-                    url = url + $.deauth.options.templateError;
+                    url = url + $.dehelper.options.templateError;
+                case "menuitems":
+                    url = url + $.dehelper.options.templateMenuItems;
             }
             
             $.ajax({
@@ -158,11 +161,11 @@
                 success: function (data, textStatus, jqXHR) {
                     myTemplate.data = data;
                     myTemplate.isLoaded = true;
-                    $.logToConsole('Refreshed Template Cache $.deauth.getTemplateCache ' + templateName + ' : ' + myTemplate.url);
+                    $.logToConsole('Refreshed Template Cache $.dehelper.getTemplateCache ' + templateName + ' : ' + myTemplate.url);
                     deferred.resolve(myTemplate.data);
                 },
                 error: function (jqXHR, textStatus, errorThrown) {
-                    $.logToConsole('Error fetching Template Cache $.deauth.getTemplateCache ' + templateName + ' : ' + myTemplate.url + ' ' + textStatus + ' ' + errorThrown);
+                    $.logToConsole('Error fetching Template Cache $.dehelper.getTemplateCache ' + templateName + ' : ' + myTemplate.url + ' ' + textStatus + ' ' + errorThrown);
                     deferred.reject(jqXHR, textStatus, errorThrown);
                 }
             });
@@ -280,24 +283,26 @@
                 theError = { error: objError }
             }
 
-            return $.deauth.showErrorDialog(theError);
+            return $.dehelper.showErrorDialog(theError);
         },
         getErrorAccessIsDenied: function (debug) {
-            return $.deauth.createError("Access is denied", debug, "Client Error", "Access is denied", 402);
+            return $.dehelper.createError("Access is denied", debug, "Client Error", "Access is denied", 402);
         },
         handleScriptException: function (ex, exceptionMessage) {
-            var objError = $.deauth.createErrorFromScriptException(ex, exceptionMessage);
-            return $.deauth.displayError(objError);
+            var objError = $.dehelper.createErrorFromScriptException(ex, exceptionMessage);
+            return $.dehelper.displayError(objError);
         },
+
+        
         showLoginDialog: function (options) {
             // returns a promise which on success mean login on failure means user cancaled out of login
             var myDefer = jQuery.Deferred();
-            //$.deauth.loginDialogGlobal =  {isLoginDialogOpen: false, queuedLoginDialogRequests: []};
-            if ($.deauth.authGlobal.loginDialog.isLoginDialogOpen == true) {
-                $.deauth.logToConsole("$.deauth.showLoginDialog Dialog Already Open Queueing Promise");
-                $.deauth.authGlobal.loginDialog.queuedLoginDialogRequests.push(myDefer);
+            //$.dehelper.loginDialogGlobal =  {isLoginDialogOpen: false, queuedLoginDialogRequests: []};
+            if ($.dehelper.authGlobal.loginDialog.isLoginDialogOpen == true) {
+                $.dehelper.logToConsole("$.dehelper.showLoginDialog Dialog Already Open Queueing Promise");
+                $.dehelper.authGlobal.loginDialog.queuedLoginDialogRequests.push(myDefer);
             } else {
-                $.deauth.authGlobal.loginDialog.isLoginDialogOpen = true;
+                $.dehelper.authGlobal.loginDialog.isLoginDialogOpen = true;
                 var trigger = "cancel";
 
                 var defaultOptions = {
@@ -315,7 +320,7 @@
                     loginData: {
                         userName: '',
                         password: '',
-                        rememberMe: $.deauth.getRememberMeSetting()
+                        rememberMe: $.dehelper.getRememberMeSetting()
                     }
                 }
                 var myOptions = $.extend(defaultOptions, options);
@@ -325,7 +330,7 @@
 
                 var beforeClose = function (event, ui) {
                     console.log("BEFORE CLOSE - ", trigger);
-                    $.deauth.authGlobal.loginDialog.isLoginDialogOpen = false;
+                    $.dehelper.authGlobal.loginDialog.isLoginDialogOpen = false;
                     if (trigger == 'cancel') {
                         cancelLogin();
                     }
@@ -343,10 +348,10 @@
                     var validationErrors = "";
 
                     trigger = "login"
-                    $('#deauth_login_error').hide();
-                    loginData.userName = $('#deauth_login_username').val();
-                    loginData.password = $('#deauth_login_password').val();
-                    loginData.rememberMe = $('#deauth_login_rememberMe').is(':checked');
+                    $('#dehelper_login_error').hide();
+                    loginData.userName = $('#dehelper_login_username').val();
+                    loginData.password = $('#dehelper_login_password').val();
+                    loginData.rememberMe = $('#dehelper_login_rememberMe').is(':checked');
 
                     showLoading();
                     if (!loginData.userName) {
@@ -357,52 +362,52 @@
                     }
                     if (validationErrors) {
                         hideLoading();
-                        $('#deauth_login_errormsg').html(validationErrors);
-                        $('#deauth_login_error').show();
+                        $('#dehelper_login_errormsg').html(validationErrors);
+                        $('#dehelper_login_error').show();
                         return;
                     }
 
-                    $.deauth.login({ grant_type: "password", username: loginData.userName, password: loginData.password, rememberMe: loginData.rememberMe }).then(
+                    $.dehelper.login({ grant_type: "password", username: loginData.userName, password: loginData.password, rememberMe: loginData.rememberMe }).then(
                         function (aiTokens, userInfo) {
-                            //All of the $.deauth.common.login properties should be set at this point so just close down the dialog and resolve the promise
+                            //All of the $.dehelper.common.login properties should be set at this point so just close down the dialog and resolve the promise
                             
                             hideLoading();
                             //$loginModal.hide();
                             
                             myDefer.resolve(userInfo);
-                            while ($.deauth.authGlobal.loginDialog.queuedLoginDialogRequests.length > 0) {
-                                var myQueueDefered = $.deauth.authGlobal.loginDialog.queuedLoginDialogRequests.pop();
+                            while ($.dehelper.authGlobal.loginDialog.queuedLoginDialogRequests.length > 0) {
+                                var myQueueDefered = $.dehelper.authGlobal.loginDialog.queuedLoginDialogRequests.pop();
                                 myQueueDefered.resolve(userInfo);
                             }
-                            $.deauth.authGlobal.loginDialog.isLoginDialogOpen = false;
+                            $.dehelper.authGlobal.loginDialog.isLoginDialogOpen = false;
                             $loginModal.dispose();
                             $dialogElement.remove();
                             
                         },
                         function (reason) {
-                            console.log('Error: deauth.showLoginDialog() SERVER RETURNED', reason);
+                            console.log('Error: dehelper.showLoginDialog() SERVER RETURNED', reason);
                             hideLoading();
-                            $('#deauth_login_errormsg').text(reason.message);
-                            $('#deauth_login_error').show();
+                            $('#dehelper_login_errormsg').text(reason.message);
+                            $('#dehelper_login_error').show();
                             trigger = "cancel";
-                            $.deauth.authGlobal.loginDialog.isLoginDialogOpen = false;
+                            $.dehelper.authGlobal.loginDialog.isLoginDialogOpen = false;
                             
                         }
                     )
                 }
                 var cancelLogin = function () {
                     trigger = "cancelclick";
-                    $.deauth.logToConsole("Login Dialog Cancel Button Clicked");
+                    $.dehelper.logToConsole("Login Dialog Cancel Button Clicked");
 
                     //$loginModal.hide();
                     
                     var rejectReason = "User Canceled Login Dialog";
                     myDefer.reject(rejectReason);
-                    while ($.deauth.authGlobal.loginDialog.queuedLoginDialogRequests.length > 0) {
-                        var myQueueDefered = $.deauth.authGlobal.loginDialog.queuedLoginDialogRequests.pop();
+                    while ($.dehelper.authGlobal.loginDialog.queuedLoginDialogRequests.length > 0) {
+                        var myQueueDefered = $.dehelper.authGlobal.loginDialog.queuedLoginDialogRequests.pop();
                         myQueueDefered.reject(rejectReason);
                     }
-                    $.deauth.authGlobal.loginDialog.isLoginDialogOpen = false;
+                    $.dehelper.authGlobal.loginDialog.isLoginDialogOpen = false;
                     $loginModal.dispose();
                     $dialogElement.remove();
                     
@@ -410,9 +415,9 @@
                 var setDialogValues = function () {
                     //trigger = "cancel"
                     if (loginData) {
-                        $dialogElement.find('#deauth_login_username').val(loginData.userName || '');
-                        $dialogElement.find('#deauth_login_password').val(loginData.password || '');
-                        $dialogElement.find('#deauth_login_rememberMe').prop('checked', (loginData.rememberMe || false));
+                        $dialogElement.find('#dehelper_login_username').val(loginData.userName || '');
+                        $dialogElement.find('#dehelper_login_password').val(loginData.password || '');
+                        $dialogElement.find('#dehelper_login_rememberMe').prop('checked', (loginData.rememberMe || false));
                     }
 
                 }
@@ -421,7 +426,7 @@
                 
                 // Get markup for login and show it as a dialog
 
-                $.when($.deauth.getTemplate('defaultModal'), $.deauth.getTemplate('login') ).done(
+                $.when($.dehelper.getTemplate('defaultModal'), $.dehelper.getTemplate('login') ).done(
                     function (defaultModalhtml, loginhtml) {
                         $dialogElement = $(defaultModalhtml);
                         $dialogElement.find('.modal-body').html(loginhtml);
@@ -453,13 +458,13 @@
                         
                         setDialogValues();
                         
-                        $dialogContent = $('#deauth_login_dialog');
+                        $dialogContent = $('#dehelper_login_dialog');
                     },
                     function () {
-                        $.deauth.logToConsole("Error loading Login Dialog HTML");
+                        $.dehelper.logToConsole("Error loading Login Dialog HTML");
                     }
                 );
-            } // end if $.deauth.loginDialogGlobal.isLoginDialogOpen
+            } // end if $.dehelper.loginDialogGlobal.isLoginDialogOpen
             return myDefer.promise();
         },
 
@@ -469,36 +474,36 @@
 
         logout: function () {
 
-            $.deauth.logToConsole("Debug: $.deauth.logout Called");
+            $.dehelper.logToConsole("Debug: $.dehelper.logout Called");
 
             var myDeferred = $.Deferred();
             try {
 
-                $.deauth.logToConsole("Debug: $.deauth.logout sending logout to server")
-                $.deauth.ajax({
+                $.dehelper.logToConsole("Debug: $.dehelper.logout sending logout to server")
+                $.dehelper.ajax({
                     method: "GET",
                     //timeout: 60000,
                     dataType: "json",
-                    url: "/deauth/login/logout",
+                    url: "/dehelper/login/logout",
                     success: function (result) {
                         //If no data is returned, spit up a message
                         if (!result || result == null) {
-                            $.deauth.logToConsole("CRITICAL ERROR: $.deauth.logout - No Data Returned");
+                            $.dehelper.logToConsole("CRITICAL ERROR: $.dehelper.logout - No Data Returned");
                             //this clears all of the Storage and UserInfo resets isLoggedIn etc
-                            $.deauth._clearLoginAccessTokenRefreshTokenAiToken();
-                            var objError = $.deauth.createErrorFromScriptException(new Error("No Data Returned"), "No Data returned by server");
+                            $.dehelper._clearLoginAccessTokenRefreshTokenAiToken();
+                            var objError = $.dehelper.createErrorFromScriptException(new Error("No Data Returned"), "No Data returned by server");
                             myDeferred.reject("No Data Returned");
                         }
                         else if (result.error) {
                             //this clears all of the Storage and UserInfo resets isLoggedIn etc
-                            $.deauth._clearLoginAccessTokenRefreshTokenAiToken();
+                            $.dehelper._clearLoginAccessTokenRefreshTokenAiToken();
                             myDeferred.reject(result);
                         }
                         else if (result.success) {
                             //this clears all of the Storage and UserInfo resets isLoggedIn etc
-                            $.deauth._clearLoginAccessTokenRefreshTokenAiToken();
-                            $.deauth.logToConsole("Debug: $.deauth.logout Success");
-                            $.deauth.getMenuItems().then(
+                            $.dehelper._clearLoginAccessTokenRefreshTokenAiToken();
+                            $.dehelper.logToConsole("Debug: $.dehelper.logout Success");
+                            $.dehelper.getMenuItems().then(
                                 function(){
                                     myDeferred.resolve(result);
                                 },
@@ -511,24 +516,24 @@
                     },  //End onSuccess
                     error: function (xhr, textStatus, thrownError) {
                         //this clears all of the Storage and UserInfo resets isLoggedIn etc
-                        $.deauth._clearLoginAccessTokenRefreshTokenAiToken();
-                        var objError = $.deauth.createErrorFromAjaxError(xhr, "Server error during logout.");
-                        $.deauth.logToConsole("ERROR deauth.logout.refreshToken: " + objError.message);
+                        $.dehelper._clearLoginAccessTokenRefreshTokenAiToken();
+                        var objError = $.dehelper.createErrorFromAjaxError(xhr, "Server error during logout.");
+                        $.dehelper.logToConsole("ERROR dehelper.logout.refreshToken: " + objError.message);
                         myDeferred.reject(objError);
                     }
                 });
 
 
             } catch (ex) {
-                $.deauth.logToConsole("ERROR deauth.logout: " + ex.toString());
-                var objError = $.deauth.createErrorFromScriptException(ex, "Server error during token refresh.");
+                $.dehelper.logToConsole("ERROR dehelper.logout: " + ex.toString());
+                var objError = $.dehelper.createErrorFromScriptException(ex, "Server error during token refresh.");
                 myDeferred.reject(ex.toString());
             }
             return myDeferred.promise();
         },
 
         hasAccessToken: function () {
-            var myAccessToken = $.deauth.getAccessToken();
+            var myAccessToken = $.dehelper.getAccessToken();
             if (myAccessToken == undefined || myAccessToken == null) {
                 return false;
             } else {
@@ -537,7 +542,7 @@
         },
 
         hasRefreshToken: function () {
-            var myRefreshToken = $.deauth.getRefreshToken();
+            var myRefreshToken = $.dehelper.getRefreshToken();
             if (myRefreshToken == undefined || myRefreshToken == null) {
                 return false;
             } else {
@@ -549,46 +554,46 @@
             
             var rememberMe;
 
-            if ($.deauth.isClientSideDebugging()) {
-                $.deauth.logToConsole("Debug: $.deauth.getRememberMeSetting Called");
+            if ($.dehelper.isClientSideDebugging()) {
+                $.dehelper.logToConsole("Debug: $.dehelper.getRememberMeSetting Called");
             }
             
 
             if (typeof (window.sessionStorage) !== "undefined") {
-                if ($.deauth.isClientSideDebugging()) {
-                    $.deauth.logToConsole("Debug: $.deauth.getRememberMeSetting Browser Supports javascript Storage");
+                if ($.dehelper.isClientSideDebugging()) {
+                    $.dehelper.logToConsole("Debug: $.dehelper.getRememberMeSetting Browser Supports javascript Storage");
                 }
 
-                rememberMe = window.localStorage.deauthRememberMe;
+                rememberMe = window.localStorage.dehelperRememberMe;
 
                 if (rememberMe) {
-                    if ($.deauth.isClientSideDebugging()) {
-                        $.deauth.logToConsole("Debug: $.deauth.getRememberMeSetting Found Remember Me in localStorage");
+                    if ($.dehelper.isClientSideDebugging()) {
+                        $.dehelper.logToConsole("Debug: $.dehelper.getRememberMeSetting Found Remember Me in localStorage");
                     }
 
-                    return $.deauth.stringToBoolean(rememberMe);
+                    return $.dehelper.stringToBoolean(rememberMe);
                 }
 
-                rememberMe = window.sessionStorage.deauthRememberMe;
+                rememberMe = window.sessionStorage.dehelperRememberMe;
 
                 if (rememberMe) {
-                    if ($.deauth.isClientSideDebugging()) {
-                        $.deauth.logToConsole("Debug: $.deauth.getRememberMeSetting Found Remember Me Temp sessionStorage");
+                    if ($.dehelper.isClientSideDebugging()) {
+                        $.dehelper.logToConsole("Debug: $.dehelper.getRememberMeSetting Found Remember Me Temp sessionStorage");
                     }
 
-                    return $.deauth.stringToBoolean(rememberMe);
+                    return $.dehelper.stringToBoolean(rememberMe);
                 }
             }
-            if (Cookies.get("deauthRememberMe")) {
-                if ($.deauth.isClientSideDebugging()) {
-                    $.deauth.logToConsole("Debug: $.deauth.getRememberMeSetting Found Remember Me in Cookies");
+            if (Cookies.get("dehelperRememberMe")) {
+                if ($.dehelper.isClientSideDebugging()) {
+                    $.dehelper.logToConsole("Debug: $.dehelper.getRememberMeSetting Found Remember Me in Cookies");
                 }   
-                rememberMe = Cookies.get("deauthRememberMe")
-                return $.deauth.stringToBoolean(rememberMe);
+                rememberMe = Cookies.get("dehelperRememberMe")
+                return $.dehelper.stringToBoolean(rememberMe);
             }
 
-            if ($.deauth.isClientSideDebugging()) {
-                $.deauth.logToConsole("Debug: $.deauth.getRememberMeSetting no Remember Me found in js storage or cookies");
+            if ($.dehelper.isClientSideDebugging()) {
+                $.dehelper.logToConsole("Debug: $.dehelper.getRememberMeSetting no Remember Me found in js storage or cookies");
             }
             return false;
         },
@@ -598,14 +603,14 @@
             
             var access_token;
 
-            if ($.deauth.common.login.accessToken) {
-                if($.deauth.common.login.accessToken.expiresOnLocal >= new Date()){
-                    access_token = $.deauth.common.login.accessToken.access_token
+            if ($.dehelper.common.login.accessToken) {
+                if($.dehelper.common.login.accessToken.expiresOnLocal >= new Date()){
+                    access_token = $.dehelper.common.login.accessToken.access_token
                 }
             }
             if (access_token) {
-                if ($.deauth.isClientSideDebugging()) {
-                    $.deauth.logToConsole("Debug: $.deauth.getAccessToken Found access Token in $.deauth.common.login.accessToken");
+                if ($.dehelper.isClientSideDebugging()) {
+                    $.dehelper.logToConsole("Debug: $.dehelper.getAccessToken Found access Token in $.dehelper.common.login.accessToken");
                 }
 
                 return access_token;
@@ -614,7 +619,7 @@
             
 
             
-            $.deauth.logToConsole("Debug: $.deauth.getAccessToken no acess token found");
+            $.dehelper.logToConsole("Debug: $.dehelper.getAccessToken no acess token found");
             
             return null;
         },
@@ -624,39 +629,39 @@
             var defaults = {
                 data: {
                     grant_type: "refresh_token",
-                    refresh_token: $.deauth.getRefreshToken()
+                    refresh_token: $.dehelper.getRefreshToken()
                 }
             }
             var objOptions = $.extend({}, defaults, options);
 
             var myDeferred = $.Deferred();
-            $.deauth.logToConsole("Debug: $.deauth.getNewAccessToken called");
+            $.dehelper.logToConsole("Debug: $.dehelper.getNewAccessToken called");
             try {
-                if ($.deauth.authGlobal.getNewAccessToken.isPending == true) {
-                    $.deauth.logToConsole("$.deauth.getNewAccessToken Already In Progress Queueing Promise");
-                    $.deauth.authGlobal.getNewAccessToken.queuedRequests.push(myDeferred);
+                if ($.dehelper.authGlobal.getNewAccessToken.isPending == true) {
+                    $.dehelper.logToConsole("$.dehelper.getNewAccessToken Already In Progress Queueing Promise");
+                    $.dehelper.authGlobal.getNewAccessToken.queuedRequests.push(myDeferred);
                 } else {
-                    $.deauth.authGlobal.getNewAccessToken.isPending = true;
+                    $.dehelper.authGlobal.getNewAccessToken.isPending = true;
 
-                    if (objOptions.data.grant_type == "refresh_token" && $.deauth.hasRefreshToken() == false) {
+                    if (objOptions.data.grant_type == "refresh_token" && $.dehelper.hasRefreshToken() == false) {
                         //console.log('refreshToken() - myRefreshToken not found');
                         throw (new Error("Missing Refresh Token"));
                     }
                     // call login with the refresh_token
-                    $.deauth.login(objOptions.data).then(function (result) {
+                    $.dehelper.login(objOptions.data).then(function (result) {
                         console.log('getNewAccessToken() resolving because its all good');
-                        $.deauth.authGlobal.getNewAccessToken.isPending = false;
+                        $.dehelper.authGlobal.getNewAccessToken.isPending = false;
                         myDeferred.resolve(result);
-                        while ($.deauth.authGlobal.getNewAccessToken.queuedRequests.length > 0) {
-                            var myQueueDefered = $.deauth.authGlobal.getNewAccessToken.queuedRequests.pop();
+                        while ($.dehelper.authGlobal.getNewAccessToken.queuedRequests.length > 0) {
+                            var myQueueDefered = $.dehelper.authGlobal.getNewAccessToken.queuedRequests.pop();
                             myQueueDefered.resolve(result);
                         }                        
                     },
                     function (objError) {
-                        $.deauth.authGlobal.getNewAccessToken.isPending = false;
+                        $.dehelper.authGlobal.getNewAccessToken.isPending = false;
                         myDeferred.reject(objError);
-                        while ($.deauth.authGlobal.getNewAccessToken.queuedRequests.length > 0) {
-                            var myQueueDefered = $.deauth.authGlobal.getNewAccessToken.queuedRequests.pop();
+                        while ($.dehelper.authGlobal.getNewAccessToken.queuedRequests.length > 0) {
+                            var myQueueDefered = $.dehelper.authGlobal.getNewAccessToken.queuedRequests.pop();
                             myQueueDefered.reject(objError);
                         }
                         
@@ -668,9 +673,9 @@
                 } //end if
             }
             catch (ex) {
-                $.deauth.common.login.isUserLoggedIn = false;
-                $.deauth.logToConsole("ERROR deauth.getNewAccessToken: " + ex.toString());
-                var objError = $.deauth.createErrorFromScriptException(ex, "Server error during getNewAccessToken.");
+                $.dehelper.common.login.isUserLoggedIn = false;
+                $.dehelper.logToConsole("ERROR dehelper.getNewAccessToken: " + ex.toString());
+                var objError = $.dehelper.createErrorFromScriptException(ex, "Server error during getNewAccessToken.");
                 console.log('getNewAccessToken() CAUGHT EXCEPTION - REJECTING', ex);
                 myDeferred.reject(objError);
             }
@@ -679,45 +684,45 @@
         },
 
         getRefreshToken: function () {
-            if ($.deauth.isClientSideDebugging()) {
-                $.deauth.logToConsole("Debug: $.deauth.getRefreshToken Called");
+            if ($.dehelper.isClientSideDebugging()) {
+                $.dehelper.logToConsole("Debug: $.dehelper.getRefreshToken Called");
             }
             var refreshToken;
 
             if (typeof (window.sessionStorage) !== "undefined") {
-                if ($.deauth.isClientSideDebugging()) {
-                    $.deauth.logToConsole("Debug: $.deauth.getRefreshToken Browser Supports javascript Storage");
+                if ($.dehelper.isClientSideDebugging()) {
+                    $.dehelper.logToConsole("Debug: $.dehelper.getRefreshToken Browser Supports javascript Storage");
                 }
 
-                refreshToken = window.localStorage.deauthRefreshToken;
+                refreshToken = window.localStorage.dehelperRefreshToken;
 
                 if (refreshToken) {
-                    if ($.deauth.isClientSideDebugging()) {
-                        $.deauth.logToConsole("Debug: $.deauth.getRefreshToken Found Refresh Token in localStorage");
+                    if ($.dehelper.isClientSideDebugging()) {
+                        $.dehelper.logToConsole("Debug: $.dehelper.getRefreshToken Found Refresh Token in localStorage");
                     }
 
                     return refreshToken;
                 }
 
-                refreshToken = window.sessionStorage.deauthRefreshToken;
+                refreshToken = window.sessionStorage.dehelperRefreshToken;
 
                 if (refreshToken) {
-                    if ($.deauth.isClientSideDebugging()) {
-                        $.deauth.logToConsole("Debug: $.deauth.getRefreshToken Found Token in Temp sessionStorage");
+                    if ($.dehelper.isClientSideDebugging()) {
+                        $.dehelper.logToConsole("Debug: $.dehelper.getRefreshToken Found Token in Temp sessionStorage");
                     }
 
                     return refreshToken;
                 }
             }
-            if (Cookies.get("deauthRefreshToken")) {
-                if ($.deauth.isClientSideDebugging()) {
-                    $.deauth.logToConsole("Debug: $.deauth.getRefreshToken Found Refresh Token in Cookies");
+            if (Cookies.get("dehelperRefreshToken")) {
+                if ($.dehelper.isClientSideDebugging()) {
+                    $.dehelper.logToConsole("Debug: $.dehelper.getRefreshToken Found Refresh Token in Cookies");
                 }                    
-                return Cookies.get("deauthRefreshToken");
+                return Cookies.get("dehelperRefreshToken");
             }
 
-            if ($.deauth.isClientSideDebugging()) {
-                $.deauth.logToConsole("Debug: $.deauth.getRefreshToken no refresh token found in js storage or cookies");
+            if ($.dehelper.isClientSideDebugging()) {
+                $.dehelper.logToConsole("Debug: $.dehelper.getRefreshToken no refresh token found in js storage or cookies");
             }
             return;
         },
@@ -748,8 +753,8 @@
                 options.url = url;
             }
 
-            if ($.deauth.isClientSideDebugging()) {
-                $.deauth.logToConsole("Debug: Preparing to make a ajax call to: " + options.url);
+            if ($.dehelper.isClientSideDebugging()) {
+                $.dehelper.logToConsole("Debug: Preparing to make a ajax call to: " + options.url);
             }
 
             // Overwrite default options with specified options
@@ -777,11 +782,11 @@
                     return;
                 }
                 // Do not pass in accessToken we always use the current accessToken for the current login or pass undefined if not logged in
-                if ($.deauth.hasAccessToken()) {
+                if ($.dehelper.hasAccessToken()) {
                     if (settings && settings.headers && settings.headers.Authorization) {
-                        $.deauth.logToConsole("$.deauth.ajax Authorization Header was overwriten by Calling Function")
+                        $.dehelper.logToConsole("$.dehelper.ajax Authorization Header was overwriten by Calling Function")
                     } else {
-                        jqXHR.setRequestHeader('Authorization', 'Bearer ' + $.deauth.getAccessToken());
+                        jqXHR.setRequestHeader('Authorization', 'Bearer ' + $.dehelper.getAccessToken());
                     }
 
                 }
@@ -797,8 +802,8 @@
             clonedDefaults.beforeSend = addAccessTokenHeader;
 
             function retryCallback() {
-                if ($.deauth.isClientSideDebugging()) {
-                    $.deauth.logToConsole("Debug: deauth.ajax: doing $.ajax call to:" + clonedDefaults.url);
+                if ($.dehelper.isClientSideDebugging()) {
+                    $.dehelper.logToConsole("Debug: dehelper.ajax: doing $.ajax call to:" + clonedDefaults.url);
                 }
                 $.ajax(clonedDefaults).then(onSuccess, onError)
             }
@@ -807,8 +812,8 @@
             retryCallback();
 
             function onSuccess(data, textStatus, jqXHR) {
-                if ($.deauth.isClientSideDebugging()) {
-                    $.deauth.logToConsole("Debug: deauth.ajax: call successful to url:" + clonedDefaults.url);
+                if ($.dehelper.isClientSideDebugging()) {
+                    $.dehelper.logToConsole("Debug: dehelper.ajax: call successful to url:" + clonedDefaults.url);
                 }
 
 
@@ -819,15 +824,15 @@
 
             function onError(jqXHR, textStatus, errorThrown) {
                 function rejectCallback(reason) {
-                    var objError = $.deauth.createErrorFromScriptException(new Error("deauth.ajax " + reason), reason);
+                    var objError = $.dehelper.createErrorFromScriptException(new Error("dehelper.ajax " + reason), reason);
                     orginalCallbacks.error(jqXHR, reason, objError);
                     deferred.reject(jqXHR, reason, objError);
                 };
 
-                if ($.deauth.isClientSideDebugging()) {
-                    $.deauth.logToConsole("Debug: deauth.ajax: call error to url:" + clonedDefaults.url + " status:" + jqXHR.status + ", statusText:" + jqXHR.statusText);
+                if ($.dehelper.isClientSideDebugging()) {
+                    $.dehelper.logToConsole("Debug: dehelper.ajax: call error to url:" + clonedDefaults.url + " status:" + jqXHR.status + ", statusText:" + jqXHR.statusText);
                 }
-                console.info('$.deauth.ajax onError() - Received status code [%s] and reason [%s]', jqXHR.status, jqXHR.statusText);
+                console.info('$.dehelper.ajax onError() - Received status code [%s] and reason [%s]', jqXHR.status, jqXHR.statusText);
 
                 switch (jqXHR.status) {
                     // Don't need this any more as default Error Handler will handle this 
@@ -848,29 +853,29 @@
 
                             switch (jqXHR.responseJSON.error) {
                                 case "Login Failed":
-                                    $.deauth.showLoginDialog().then(retryCallback, rejectCallback);
+                                    $.dehelper.showLoginDialog().then(retryCallback, rejectCallback);
                                     break;
                                 case "Invalid RefreshToken":
-                                    $.deauth.logToConsole("Debug: deauth.ajax: call error to url:\"" + clonedDefaults.url + "\". Refresh Token is invalid, clearing all the currently logged in information including refresh and auth tokens from storage");
-                                    $.deauth._clearLoginAccessTokenRefreshTokenAppCookie();
-                                    $.deauth.showLoginDialog().then(retryCallback, rejectCallback);
+                                    $.dehelper.logToConsole("Debug: dehelper.ajax: call error to url:\"" + clonedDefaults.url + "\". Refresh Token is invalid, clearing all the currently logged in information including refresh and auth tokens from storage");
+                                    $.dehelper._clearLoginAccessTokenRefreshTokenAppCookie();
+                                    $.dehelper.showLoginDialog().then(retryCallback, rejectCallback);
                                     break;
                                 case "Invalid AccessToken":
-                                    if ($.deauth.hasRefreshToken()) {
+                                    if ($.dehelper.hasRefreshToken()) {
                                         // Attempt to use the refresh token. If the server rejects the token as 
                                         // having been expired, show login 
-                                        $.deauth.getNewAccessToken().then(
+                                        $.dehelper.getNewAccessToken().then(
                                             retryCallback,
                                             function (objError) {
                                                 //console.log('accessToken timeout - attempted getNewAccessToken() failed, reason: ', objError)
                                                 switch (objError.StatusCode) {
                                                     case 401: // This is the invalid or timed out getNewAccessToken error so throw the login Dialog
-                                                        $.deauth.showLoginDialog().then(retryCallback, rejectCallback);
+                                                        $.dehelper.showLoginDialog().then(retryCallback, rejectCallback);
                                                         break;
                                                     default:  //This is some other error such as server is down but happened during our token refresh so throw the error dialog
-                                                        $.deauth.logToConsole("Fatal Error Refreshing Token");
+                                                        $.dehelper.logToConsole("Fatal Error Refreshing Token");
                                                         if (clonedDefaults.showErrorDialog == true) {
-                                                            $.deauth.showErrorDialog({ "error": objError }).then(retryCallback, rejectCallback);
+                                                            $.dehelper.showErrorDialog({ "error": objError }).then(retryCallback, rejectCallback);
                                                         } else {
                                                             deferred.reject(jqXHR, reason, objError);
                                                         }
@@ -879,7 +884,7 @@
                                         );
                                     } else {
                                         // User does not have a refreshToken or LoginTrackCookie so show the Login dialog
-                                        $.deauth.showLoginDialog().then(retryCallback, rejectCallback);
+                                        $.dehelper.showLoginDialog().then(retryCallback, rejectCallback);
                                     }
                                     break;
                             }
@@ -889,12 +894,12 @@
                         break;
                     default:
                         if (clonedDefaults.url.indexOf('Log_Insert_Same_Event') == -1) {
-                            $.deauth.logToConsole("Error Returned from Server Call to " + $.deauth.cleanForjQuery(clonedDefaults.url + ", Error: " + errorThrown));
+                            $.dehelper.logToConsole("Error Returned from Server Call to " + $.dehelper.cleanForjQuery(clonedDefaults.url + ", Error: " + errorThrown));
                         }
 
-                        var objError = $.deauth.createErrorFromAjaxError(jqXHR, "Error deauth.ajax: Server error during call to " + $.deauth.cleanForjQuery(clonedDefaults.url));
+                        var objError = $.dehelper.createErrorFromAjaxError(jqXHR, "Error dehelper.ajax: Server error during call to " + $.dehelper.cleanForjQuery(clonedDefaults.url));
                         if (clonedDefaults.showErrorDialog) {
-                            $.deauth.showErrorDialog({ "error": objError }).then(retryCallback, rejectCallback);
+                            $.dehelper.showErrorDialog({ "error": objError }).then(retryCallback, rejectCallback);
                         } else {
                             deferred.reject(jqXHR, textStatus, objError);
                         }
@@ -910,45 +915,45 @@
             if (typeof (window.sessionStorage) !== "undefined") {
                 if (rememberMe == true) {
                     // Code for localStorage/sessionStorage.
-                    window.localStorage.setItem("deauthRefreshToken", refreshToken.refresh_token);
-                    window.localStorage.setItem("deauthRefreshTokenExpiresOn", refreshToken.expiresOn);
-                    window.localStorage.setItem("deauthRememberMe", "true")
+                    window.localStorage.setItem("dehelperRefreshToken", refreshToken.refresh_token);
+                    window.localStorage.setItem("dehelperRefreshTokenExpiresOn", refreshToken.expiresOn);
+                    window.localStorage.setItem("dehelperRememberMe", "true")
                 } else {
-                    window.sessionStorage.setItem("deauthRefreshToken", refreshToken.refresh_token)
-                    window.sessionStorage.setItem("deauthRefreshTokenExpiresOn", refreshToken.expiresOn)
-                    window.localStorage.setItem("deauthRememberMe", "false")
+                    window.sessionStorage.setItem("dehelperRefreshToken", refreshToken.refresh_token)
+                    window.sessionStorage.setItem("dehelperRefreshTokenExpiresOn", refreshToken.expiresOn)
+                    window.localStorage.setItem("dehelperRememberMe", "false")
                 }
             } else {
-                Cookies.set("deauthRefreshToken", refreshToken.refresh_token);
-                Cookies.set("deauthRefreshTokenExpiresOn", refreshToken.expiresOn);
-                Cookies.set("deauthRememberMe", rememberMe)
+                Cookies.set("dehelperRefreshToken", refreshToken.refresh_token);
+                Cookies.set("dehelperRefreshTokenExpiresOn", refreshToken.expiresOn);
+                Cookies.set("dehelperRememberMe", rememberMe)
             }
         },
         _clearStorageRefreshToken: function () {
             if (typeof (window.sessionStorage) !== "undefined") {
-                window.localStorage.removeItem("deauthRefreshToken")
-                window.sessionStorage.removeItem("deauthRefreshToken")
-                window.localStorage.removeItem("deauthRefreshTokenExpiresOn")
-                window.sessionStorage.removeItem("deauthRefreshTokenExpiresOn")
+                window.localStorage.removeItem("dehelperRefreshToken")
+                window.sessionStorage.removeItem("dehelperRefreshToken")
+                window.localStorage.removeItem("dehelperRefreshTokenExpiresOn")
+                window.sessionStorage.removeItem("dehelperRefreshTokenExpiresOn")
             }
-            Cookies.remove("deauthRefreshToken");
-            Cookies.remove("deauthRefreshTokenExpiresOn");
+            Cookies.remove("dehelperRefreshToken");
+            Cookies.remove("dehelperRefreshTokenExpiresOn");
             
         },
 
         setAccessToken: function (accessToken) {
             //This code is here to set the expires in if we have a clock drift
             accessToken.expiresOnLocal = new Date(new Date().getTime() + (accessToken.expiresIn * 1000));
-            $.deauth.common.login.accessToken = accessToken;
+            $.dehelper.common.login.accessToken = accessToken;
         },
 
         
         _clearLoginAccessTokenRefreshTokenAiToken: function () {
-            $.deauth._clearStorageRefreshToken();
-            //$.deauth._clearStorageAccessToken();
-            $.deauth.common.login.accessToken = null;
-            $.deauth.common.login.userInfo = null;
-            $.deauth.common.login.isUserLoggedIn = false;
+            $.dehelper._clearStorageRefreshToken();
+            //$.dehelper._clearStorageAccessToken();
+            $.dehelper.common.login.accessToken = null;
+            $.dehelper.common.login.userInfo = null;
+            $.dehelper.common.login.isUserLoggedIn = false;
         },
 
        /*
@@ -958,13 +963,13 @@
             var myDeferred = $.Deferred();
             var defaults = {
                 method: 'GET',
-                url: "/deauth/api/UserInfo"
+                url: $.dehelper.options.baseUrl + "UserInfo"
             }
             var objOptions = $.extend({}, defaults, options);
-            if ($.deauth.isClientSideDebugging()) {
-                $.deauth.logToConsole("Debug: $.deauth.getUserInfo Called");
+            if ($.dehelper.isClientSideDebugging()) {
+                $.dehelper.logToConsole("Debug: $.dehelper.getUserInfo Called");
             }
-            $.deauth.ajax(objOptions).then(function (result) {
+            $.dehelper.ajax(objOptions).then(function (result) {
                 myDeferred.resolve(result);
             },
             function (result) {
@@ -983,8 +988,8 @@
 
             try {
 
-                if ($.deauth.isClientSideDebugging()) {
-                    $.deauth.logToConsole("Debug: Calling $.deauth.login");
+                if ($.dehelper.isClientSideDebugging()) {
+                    $.dehelper.logToConsole("Debug: Calling $.dehelper.login");
                 }
 
                 var defaultOptions = {
@@ -993,18 +998,18 @@
                     password: null,
                     token: null, //if using a externalBearer token set it here
                     refresh_token: null,
-                    rememberMe: $.deauth.getRememberMeSetting()
+                    rememberMe: $.dehelper.getRememberMeSetting()
                     
                 }
                 var myOptions = $.extend(defaultOptions, options);
                 //Check for username and password
                 if (myOptions.grant_type == "password") {
                     if (myOptions.username == null || !$.trim(myOptions.username)) {
-                        myDeferred.reject($.deauth.createError("username is missing"));
+                        myDeferred.reject($.dehelper.createError("username is missing"));
                         return myDeferred.promise();
 
                     } else if (myOptions.password == null || !$.trim(myOptions.password)) {
-                        myDeferred.reject($.deauth.createError("password is missing"));
+                        myDeferred.reject($.dehelper.createError("password is missing"));
                         return myDeferred.promise();
                     }
                 }
@@ -1017,30 +1022,30 @@
                     contentType: "application/x-www-form-urlencoded; charset=UTF-8",
                     //data: JSON.stringify(postdata),
                     data: myOptions,
-                    url: $.deauth.properties.options.baseApiUrl + 'login',
+                    url: $.dehelper.properties.options.baseApiUrl + 'login',
                     success: function (result) {
                         //If no data is returned, show message
                         if (!result) {
-                            $.deauth.logToConsole("Error Login: " + "No Data Returned");
+                            $.dehelper.logToConsole("Error Login: " + "No Data Returned");
 
-                            $.deauth.common.login.isUserLoggedIn = false;
-                            $.deauth._clearLoginAccessTokenRefreshTokenAiToken();
-                            var objError = $.deauth.createErrorFromScriptException(new Error("No Data Returned"), "No Data returned by server");
+                            $.dehelper.common.login.isUserLoggedIn = false;
+                            $.dehelper._clearLoginAccessTokenRefreshTokenAiToken();
+                            var objError = $.dehelper.createErrorFromScriptException(new Error("No Data Returned"), "No Data returned by server");
                             myDeferred.reject(objError);
 
                         }
                         else if (result.error) {
                             //if (options.debug)
-                            //    $.deauth.logToConsole("Called deauth.login.fetchToken: DATA RETURNED");
-                            $.deauth.logToConsole("Error login result.error: " + result.error);
-                            $.deauth.common.login.isUserLoggedIn = false;
-                            $.deauth._clearLoginAccessTokenRefreshTokenAiToken();
+                            //    $.dehelper.logToConsole("Called dehelper.login.fetchToken: DATA RETURNED");
+                            $.dehelper.logToConsole("Error login result.error: " + result.error);
+                            $.dehelper.common.login.isUserLoggedIn = false;
+                            $.dehelper._clearLoginAccessTokenRefreshTokenAiToken();
                             myDeferred.reject(result);
 
                         }
                         else if (result.accessToken) {
-                            $.deauth.logToConsole("Debug: $.deauth.login Success");
-                            $.deauth._processLoginInfo(result, myOptions.rememberMe).then(
+                            $.dehelper.logToConsole("Debug: $.dehelper.login Success");
+                            $.dehelper._processLoginInfo(result, myOptions.rememberMe).then(
                                 function (userInfo) {
                                     myDeferred.resolve(userInfo);
                                 },
@@ -1050,18 +1055,18 @@
                             );
 
                         }else{
-                            $.deauth.logToConsole("Error login unknown error: " + result);
-                            $.deauth.common.login.isUserLoggedIn = false;
-                            $.deauth._clearLoginAccessTokenRefreshTokenAiToken();
+                            $.dehelper.logToConsole("Error login unknown error: " + result);
+                            $.dehelper.common.login.isUserLoggedIn = false;
+                            $.dehelper._clearLoginAccessTokenRefreshTokenAiToken();
                             myDeferred.reject({message:"Unknown Login Error missing refreshToken", error:"Unknown Login Error"});
                         }
 
                     },  //End onSuccess
                     error: function (xhr, textStatus, thrownError) {
-                        $.deauth.common.login.isUserLoggedIn = false;
-                        $.deauth._clearLoginAccessTokenRefreshTokenAiToken();
-                        var objError = $.deauth.createErrorFromAjaxError(xhr, "Server error during login.");
-                        $.deauth.logToConsole("ERROR deauth.login.fetchToken: " + objError.message);
+                        $.dehelper.common.login.isUserLoggedIn = false;
+                        $.dehelper._clearLoginAccessTokenRefreshTokenAiToken();
+                        var objError = $.dehelper.createErrorFromAjaxError(xhr, "Server error during login.");
+                        $.dehelper.logToConsole("ERROR dehelper.login.fetchToken: " + objError.message);
 
                         myDeferred.reject(objError);
                     }
@@ -1071,9 +1076,9 @@
 
             }
             catch (ex) {
-                $.deauth.logToConsole("ERROR deauth.login.fetchToken: " + ex);
-                $.deauth.common.login.isUserLoggedIn = false;
-                var objError = $.deauth.createErrorFromScriptException(ex);
+                $.dehelper.logToConsole("ERROR dehelper.login.fetchToken: " + ex);
+                $.dehelper.common.login.isUserLoggedIn = false;
+                var objError = $.dehelper.createErrorFromScriptException(ex);
                 myDeferred.reject(objError);
             }
             return myDeferred.promise();
@@ -1086,49 +1091,49 @@
             var myDeferred = $.Deferred();
             try {
                 if (result.accessToken) {
-                    $.deauth.setAccessToken(result.accessToken, rememberMe);
+                    $.dehelper.setAccessToken(result.accessToken, rememberMe);
                 }
                 //Store the refreshToken for subsequent calls
                 if (result.refreshToken) {
-                    $.deauth._setStorageRefreshToken(result.refreshToken, rememberMe);
+                    $.dehelper._setStorageRefreshToken(result.refreshToken, rememberMe);
                 } else {
                     // Don't clear the refreshToken as it won't be returned with refresh_token calls
-                    //$.deauth._clearStorageRefreshToken();
+                    //$.dehelper._clearStorageRefreshToken();
                 }
 
                 //Login is only Successfull if we can also use the new token to get the userInfo /disable loginprompt and show error
                 if (fetchUserInfo == undefined || fetchUserInfo == true) {
-                    $.when($.deauth.getUserInfo({ showErrorDialog: false, showLoginOn401Error: false })) //, $.deauth.getUserSettings({ showErrorDialog: false, showLoginOn401Error: false })
+                    $.when($.dehelper.getUserInfo({ showErrorDialog: false, showLoginOn401Error: false })) //, $.dehelper.getUserSettings({ showErrorDialog: false, showLoginOn401Error: false })
                         .then(function (userInfoResults){ //, userSettingResults) {
-                            $.deauth.common.login.userInfo = userInfoResults;
-                            $.deauth.common.login.isUserLoggedIn = true;
-                            $.deauth.getMenuItems().then(
+                            $.dehelper.common.login.userInfo = userInfoResults;
+                            $.dehelper.common.login.isUserLoggedIn = true;
+                            $.dehelper.getMenuItems().then(
                                 function(){
                                     myDeferred.resolve(userInfoResults);
                                 },
                                 function(ex){
-                                    $.deauth.logToConsole("ERROR deauth.login.getUserInfo.getMenuItems: " + objError.message);        
+                                    $.dehelper.logToConsole("ERROR dehelper.login.getUserInfo.getMenuItems: " + objError.message);        
                                     myDeferred.reject(ex);
                                 }
                             )
                             
-                            //$.deauth.common.settings.user = userSettingResults;
+                            //$.dehelper.common.settings.user = userSettingResults;
 
                             
                         }, function (userInfoResultsError) { //, userSettingResultsError) {
-                            $.deauth.common.login.isUserLoggedIn = false;
-                            $.deauth._clearLoginAccessTokenRefreshTokenAiToken();
-                            var objError = userInfoResultsError || userSettingResultsError; //$.deauth.createErrorFromAjaxError(userInfoResultsError, "Error retriving UserInfo during ProcessLoginInfo.");
-                            $.deauth.logToConsole("ERROR deauth.login.getUserInfo: " + objError.message);
+                            $.dehelper.common.login.isUserLoggedIn = false;
+                            $.dehelper._clearLoginAccessTokenRefreshTokenAiToken();
+                            var objError = userInfoResultsError || userSettingResultsError; //$.dehelper.createErrorFromAjaxError(userInfoResultsError, "Error retriving UserInfo during ProcessLoginInfo.");
+                            $.dehelper.logToConsole("ERROR dehelper.login.getUserInfo: " + objError.message);
                             myDeferred.reject(objError);
                         });
                 } else {
                     myDeferred.resolve();
                 }
             } catch (ex) {
-                $.deauth.logToConsole("ERROR deauth.login.fetchToken: " + ex);
-                $.deauth.common.login.isUserLoggedIn = false;
-                var objError = $.deauth.createErrorFromScriptException(ex);
+                $.dehelper.logToConsole("ERROR dehelper.login.fetchToken: " + ex);
+                $.dehelper.common.login.isUserLoggedIn = false;
+                var objError = $.dehelper.createErrorFromScriptException(ex);
                 myDeferred.reject(objError);
             }
             return myDeferred.promise();
@@ -1136,7 +1141,7 @@
 
 
         /* 
-            the autologin function returns a promise that is always resolved even if there is no refresh token used in deauth.appinit.
+            the autologin function returns a promise that is always resolved even if there is no refresh token used in dehelper.appinit.
             The purpose of this function is to check to see if the accessToken is avalible and is not expired
             if its not avalible but a refreshToken is avalible then the refresh Token is set to the server to exchange for
         */
@@ -1145,21 +1150,21 @@
             var myDeferred = $.Deferred();
             //console.info('in autologin()');
             try {
-                if ($.deauth.isClientSideDebugging())
-                    $.deauth.logToConsole("Debug: $.deauth.autoLogin called");
+                if ($.dehelper.isClientSideDebugging())
+                    $.dehelper.logToConsole("Debug: $.dehelper.autoLogin called");
 
-                if ($.deauth.hasRefreshToken()) {
-                    $.deauth.getNewAccessToken()
+                if ($.dehelper.hasRefreshToken()) {
+                    $.dehelper.getNewAccessToken()
                         .done(function () {
-                            if ($.deauth.isClientSideDebugging()) {
-                                $.deauth.logToConsole("Debug: $.deauth.autoLogin success");
+                            if ($.dehelper.isClientSideDebugging()) {
+                                $.dehelper.logToConsole("Debug: $.dehelper.autoLogin success");
                             }
                             //console.log('autologin() refreshtoken().done');
                             myDeferred.resolve();
                         })
                         .fail(function () {
-                            if ($.deauth.isClientSideDebugging()) {
-                                $.deauth.logToConsole("Debug: $.deauth.autoLogin failed");
+                            if ($.dehelper.isClientSideDebugging()) {
+                                $.dehelper.logToConsole("Debug: $.dehelper.autoLogin failed");
                             }
                             //console.log('autologin() refreshtoken().failed');
                             //console.trace()
@@ -1167,7 +1172,7 @@
                             myDeferred.resolve();
                         })
                 } else {
-                    $.deauth.logToConsole("Debug: $.deauth.autoLogin no RefreshToken or aspnet.cookie Found so skipping autologin ");
+                    $.dehelper.logToConsole("Debug: $.dehelper.autoLogin no RefreshToken or aspnet.cookie Found so skipping autologin ");
                     //we always resolve in autologin
                     myDeferred.resolve();
                 }
@@ -1175,7 +1180,7 @@
             }
 
             catch (ex) {
-                $.deauth.logToConsole("ERROR $.deauth.autoLogin: " + ex.toString());
+                $.dehelper.logToConsole("ERROR $.dehelper.autoLogin: " + ex.toString());
                 //this must be a resolve as its autologin and even if it errors it should be successful
                 myDeferred.resolve();
             }
@@ -1188,17 +1193,17 @@
             if (document.location.hostname == "localhost" || document.location.hostname == "127.0.0.1") {
                 return true;
             }
-            //if ($.deauth.common.settings.isClientSideDebugging == null) {
-            var DebugSetting = $.deauth.options.debug;
+            //if ($.dehelper.common.settings.isClientSideDebugging == null) {
+            var DebugSetting = $.dehelper.options.debug;
             if (DebugSetting) {
-                //$.deauth.common.settings.isClientSideDebugging = DebugSetting;
+                //$.dehelper.common.settings.isClientSideDebugging = DebugSetting;
                 return DebugSetting;
             } else {
-                //$.deauth.common.settings.isClientSideDebugging = false;
+                //$.dehelper.common.settings.isClientSideDebugging = false;
                 return false;
             }
             //} else {
-            //    return $.deauth.common.settings.isClientSideDebugging;
+            //    return $.dehelper.common.settings.isClientSideDebugging;
             //}
         },
         
@@ -1207,8 +1212,8 @@
 
         isUserInRole: function (roleId) {
             var foundRole = false;
-            if ($.deauth.common.login.isUserLoggedIn && $.deauth.common.login.userInfo.roles) {
-                $.each($.deauth.common.login.userInfo.roles, function (index, value) {
+            if ($.dehelper.common.login.isUserLoggedIn && $.dehelper.common.login.userInfo.roles) {
+                $.each($.dehelper.common.login.userInfo.roles, function (index, value) {
                     if (value.roleId == roleId) {
                         foundRole = true;
                         return false;
@@ -1222,9 +1227,9 @@
 
         isUserInRoleName: function (roleName) {
             var foundRole = false;
-            if ($.deauth.common.login.isUserLoggedIn && $.deauth.common.login.userInfo.roles) {
+            if ($.dehelper.common.login.isUserLoggedIn && $.dehelper.common.login.userInfo.roles) {
                 roleName = roleName.toLowerCase();
-                $.each($.deauth.common.login.userInfo.roles, function (index, value) {
+                $.each($.dehelper.common.login.userInfo.roles, function (index, value) {
                     if (value.roleName.toLowerCase() == roleName) {
                         foundRole = true;
                         return false;
@@ -1238,7 +1243,7 @@
 
         isUserLoggedIn: function () {
             
-            if ($.deauth.common.login.isUserLoggedIn === true ) {
+            if ($.dehelper.common.login.isUserLoggedIn === true ) {
                         return true;
             
             }else{
@@ -1247,10 +1252,169 @@
 
         },
 
+
+       
+        
+
         
         // End Auth -------------------------------------------------------
 
-        
+        // Begin Menu Items Page Content
+
+        getMenuItems: function () {
+            var deferred = $.Deferred();
+            $.dehelper.ajax({
+                method: 'GET',
+                url: $.dehelper.options.baseUrl + '/PageContent/MenuItems'
+            }).then(
+                function (menuItems) {
+                    $.dehelper.common.menu.menuItems = menuItems;
+                    let $menuItemTemplate = $(".menuItemTemplate").find(".menuItem");
+                    let $menuItemsContainer = $(".menuItems");
+                    $menuItemsContainer.empty();
+                    $.each(menuItems, function (index, item) {
+                        if (item.roleId === undefined || item.roleId === null || item.roleId === '' || $.dehelper.isUserInRoleName(item.roleId)){
+                            let $menuItem = $menuItemTemplate.clone();
+                            if (item.contentType === "link") {
+                                $menuItem.find("a").attr("href", item.linkUrl).attr("data-id", item.pageContentGuid).text(item.linkText);
+                                if (item.linkTarget) {
+                                    $menuItem.find("a").attr("target", item.linkTarget);
+                                }
+                            } else {
+                                $menuItem.find("a").attr("href", "javascript:void(0)").attr("data-id", item.pageContentGuid).text(item.linkText).on("click", $.dehelper.menuItemClick);
+                            }
+                            $menuItemsContainer.append($menuItem);
+                        }
+                    });
+                    
+                    if($.dehelper.isUserLoggedIn === true){
+                        //add Login MenuItem menuItemLoginTemplate
+                        let $logoutMenuItem = $(".menuItemLogoutTemplate").find(".menuItem").clone();
+                        $menuItemsContainer.append($logoutMenuItem);
+                    }else{
+                        //add Login MenuItem menuItemLoginTemplate
+                        let $loginMenuItem = $(".menuItemLoginTemplate").find(".menuItem").clone();
+                        $menuItemsContainer.append($loginMenuItem);
+                    }
+                    deferred.resolve();
+                },
+                function (reason) {
+                    $.logToConsole("Error: dehelper.getMenuItems failed " + reason);
+                    deferred.reject();
+                }
+            );
+            return deferred.promise();
+        },
+
+        loadPageContent: function () {
+
+            const parsedUrl = new URL(window.location.href);
+            let pageOptions = null;
+            if (parsedUrl.pathname === '/') {
+                pageOptions = {
+                    pageContentGuid: '00000000-0000-0000-0000-000000000001'
+                }; //Home Page                     
+            } else {
+                pageOptions = {
+                    linkUrl: parsedUrl.pathname
+                };
+            }
+            //$.dehelper.showLoading();
+            $.dehelper.getPageContent(pageOptions).then(function (page) {
+                $.dehelper.showPageContent(page);
+                //$.dehelper.hideLoading();
+            }
+                
+            )
+        },
+
+        showPageContent: function (page) {
+            document.title = page.pageTitle;
+            $('meta[name="description"]').attr("content", page.pageDescription);
+            if(page.contentType === "template"){
+                $.dehelper.getTemplateContent({templatePath: page.content}).then(
+                    function(templateContent){
+                        $(".pageContent").html(templateContent);
+                    },
+                    function(err){
+                        $.dehelper.displayError({error:err});
+                    }
+                )
+                
+            }else if(page.contentType === "plugin.widget"){
+                
+                var $element = $("<div></div>")
+                $(".pageContent").empty().append($element);
+                $.dehelper.widgetFactoryHelper.loadWidget( $element[0], {widgetName: page.content}).then(
+                    function(templateContent){
+                        
+                    },
+                    function(err){
+                        $.logToConsole("ERROR: showPageContent contentType=widget ", err.toString());
+                        var objError = $.dehelper.createErrorFromScriptException(err, "Server error during dehelper.loadWidget.");
+                        $.dehelper.displayError(objError);
+                    }
+                )
+                // import("/modules/my-module.js")
+                //     .then((module) => {
+                //         module.loadPageInto(main);
+                //     })
+                //     .catch((err) => {
+                //         main.textContent = err.message;
+                //     });
+                // });
+            }
+            
+            else{
+                $(".pageContent").html(page.content);
+            }
+            
+        },
+        getPageContent: function (options) {
+            var deferred = $.Deferred();
+            var url = '';
+            if (options.pageContentGuid) {
+                url = $.dehelper.options.baseUrl + 'PageContent/PageContentGuid/' + options.pageContentGuid;
+            }else if (options.linkUrl) {
+                url = $.dehelper.options.baseUrl + 'PageContent/LinkUrl/' + options.linkUrl;
+            }
+            else {
+                url = $.dehelper.options.baseUrl + 'PageContent/PageContentGuid/00000000-0000-0000-0000-000000000001' ; //Home Page
+            }
+            $.dehelper.ajax({
+                method: 'GET',
+                url:  url
+            }).then(
+                function (page) {
+                    deferred.resolve(page);
+                },
+                function (reason) {
+                    $.logToConsole("Error: dehelper.getPageContent failed " + reason);
+                    deferred.reject();
+                }
+            );
+            return deferred.promise();
+        },
+        menuItemClick: function (e) {
+            let $menuItem = $(e.currentTarget);            
+            let pageContentGuid = $menuItem.attr("data-id");
+            
+            $.dehelper.getPageContent({ pageContentGuid: pageContentGuid }).then(
+                function (page) {
+                    history.pushState({ page: page }, page.pageTitle, page.linkUrl);
+                    $.dehelper.showPageContent(page);
+
+                },
+                function(err){
+                    $.logToConsole("ERROR: menuItemClick", err.toString());
+                    var objError = $.dehelper.createErrorFromScriptException(err, "Server error during dehelper.loadWidget.");
+                    $.dehelper.displayError(objError);
+                }
+            );
+            
+        },
+
+        // End Menu Items Page Content ------------------------------------
 
 
         //Begin Common Error Handler
@@ -1435,7 +1599,7 @@
         },
         createErrorFromScriptException: function (ex, exceptionMessage) {
             if (!exceptionMessage) {
-                exceptionMessage = $.deauth.friendlyError;
+                exceptionMessage = $.dehelper.friendlyError;
             }
             if (typeof (ex) !== "object") {
                 try {
@@ -1465,13 +1629,13 @@
             } catch (ex2) {
                 fullmsg = fullmsg + "CRITICAL ERROR: Building Error Message createErrorFromScriptException:" + ex2.toString();
             }
-            return $.deauth.createError(msg, exceptionMessage, "Client Error", fullmsg, 9999);
+            return $.dehelper.createError(msg, exceptionMessage, "Client Error", fullmsg, 9999);
         },
 
         createErrorFromAjaxError: function (xhr, exceptionMessage) {
             xhr = xhr || {};
-            exceptionMessage = exceptionMessage || $.deauth.friendlyError;
-            var msg = (xhr.statusText || $.deauth.friendlyError),
+            exceptionMessage = exceptionMessage || $.dehelper.friendlyError;
+            var msg = (xhr.statusText || $.dehelper.friendlyError),
                 myurl = (xhr.url || ''),
                 statusnum = ((xhr.status != undefined) ? xhr.status : 500),
                 fullmsg = '',
@@ -1501,7 +1665,7 @@
                         "Client Exception:" + exceptionMessage + "\n" +
                         "Client Message:" + msg + "\n" +
                         "Client StackTrace:" + javascriptStackTrace;
-                    return $.deauth.createError(errorMsg, errorExceptionMessage, "Server Error", fullmsg, xhr.status);
+                    return $.dehelper.createError(errorMsg, errorExceptionMessage, "Server Error", fullmsg, xhr.status);
                 } else {
                     fullmsg = "Message: Error during Ajax Request to " + myurl + "\n" +
                         "Status Code:" + xhr.status + "\n" +
@@ -1514,10 +1678,10 @@
                         "Client Message:" + msg + "\n" +
                         "Client StackTrace:" + javascriptStackTrace;
                 }
-                return $.deauth.createError(msg, exceptionMessage, "Client Error", fullmsg, statusnum);
+                return $.dehelper.createError(msg, exceptionMessage, "Client Error", fullmsg, statusnum);
             } catch (ex) {
                 fullmsg += "Error Building Error Message createErrorFromAjaxError:" + ex.toString();
-                return $.deauth.createError(msg, exceptionMessage, "Client Error", fullmsg, statusnum);
+                return $.dehelper.createError(msg, exceptionMessage, "Client Error", fullmsg, statusnum);
             }
 
         }
@@ -1526,14 +1690,3 @@
     });
 })(jQuery);
 
-$(function () {
-    $.deauth.appInit().then(
-        function () {
-
-        },
-        function (err) {
-            console.log('error', err)
-        }
-
-    )
-})

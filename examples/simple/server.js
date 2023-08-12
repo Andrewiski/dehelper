@@ -53,6 +53,7 @@ let deHelperLoginConfig = {}
 
 var deHelper = DeHelper(deHelperLoginConfig);
 
+deHelper.attachExpress(app);
 //app.use(deauth.expressMiddleWare);
 
 
@@ -73,6 +74,26 @@ app.use('/admin/*', function (req, res, next) {
     return;
 })
 
+//serve the index.html file or any other static files in the public folder
+
+app.use('/*', function (req, res, next) {
+    var filePath = req.baseUrl;
+
+    if (filePath === "/" || filePath === "") {
+        filePath = "/index.htm";
+    }
+    if (fs.existsSync(path.join(__dirname, 'public',filePath)) === true) {
+        res.sendFile(filePath, { root: path.join(__dirname, 'public') });  
+    } else {
+        //This allows any unhandled routes with no extention to be handled by the index.html file on a page refresh
+        if(path.extname(filePath) === ""){
+            filePath = "/index.htm";
+            res.sendFile(filePath, { root: path.join(__dirname, 'public') });
+        }else{
+            res.sendStatus(404);
+        }
+    }
+});
 
 
 var getConnectionInfo = function (req) {
@@ -93,7 +114,6 @@ try {
         console.log("app", 'info', 'Express server listening on http port ' + config.httpport);
         debug("app", 'info', 'Express server listening on http port ' + config.httpport);
     });
-    deHelper.attach(http_srv);
 } catch (ex) {
     console.log("app", 'error', 'Failed to Start Express server on http port ' + config.httpport, ex);
     debug("app", 'error', 'Failed to Start Express server on http port ' + config.httpport, ex);

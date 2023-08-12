@@ -9,25 +9,13 @@ import type {
   UsernamePasswordValidateOptions,
   iUserStore,
 } from "./UserStore";
+import path from "node:path";
 import { ErrorMessage } from "./ErrorMessage";
 import { Helper } from "./Helper";
 const debug = debugModule("DeHelper:Login");
 
-/**
- * Represents the DeHelper.Login Middleware App.
- *
- * @example
- * import { DeHelper } from "DeHelper";
- * const express = require('express');
- *
- * var app = express();
- * const deHelperOptions = {
- *    userStore : new DEAuth.UserStoreFile({dataPath: './data'})
- * };
- * const deAuthLogin = new DEAuth(deAuthOptions);
- * app.use(deAuth);
- */
 export type LoginOptions = {
+  loginBasePath: string;
   userStore: iUserStore;
 };
 
@@ -36,6 +24,17 @@ export class Login {
 
   constructor(loginOptions: LoginOptions) {
     this.options = loginOptions;
+  }
+
+  public attachExpress(app: express.Express) {
+    app.use(
+      path.join("/", this.options.loginBasePath, "/login"),
+      this.loginHandler.bind(this)
+    );
+    app.use(
+      path.join("/", this.options.loginBasePath, "/logout"),
+      this.logoutHandler.bind(this)
+    );
   }
 
   public validateAccessTokenHandler(

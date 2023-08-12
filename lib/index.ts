@@ -1,8 +1,8 @@
 import http = require("http");
-import type { Server as HTTPSServer } from "https";
-import type { Http2SecureServer } from "http2";
+import path from "node:path";
+import fs from "node:fs";
 import debugModule from "debug";
-import express, { Request, Response, NextFunction } from "express";
+import express, { Request, Response, NextFunction, Express } from "express";
 import type {
   LoginData,
   iUserStore,
@@ -27,14 +27,17 @@ import type {
   UserCreateSuperUserOptions,
 } from "./UserStore";
 import { UserStoreFile } from "./UserStoreFile";
-import { Login } from "./Login";
+import { Login, LoginOptions } from "./Login";
 import { ErrorMessage } from "./ErrorMessage";
 const debug = debugModule("DeHelper");
 const clientVersion = require("../package.json").version;
 
 export type DeHelperOptions = {
-  userStore: iUserStore;
-  path?: string;
+  basePath?: string;
+  clientSideBasePath?: string;
+  clientSideFolderPath?: string;
+  iUserStore?: iUserStore;
+  login?: LoginOptions;
 };
 
 /**
@@ -55,35 +58,81 @@ export type DeHelperOptions = {
 
 export class DeHelper {
   private options: DeHelperOptions;
-  private _defaultPath: string = "/dehelper";
-  constructor(deHelperOptions: DeHelperOptions) {
-    this.options = deHelperOptions;
+  private readonly _defaultOptions: DeHelperOptions = {
+    basePath: "/dehelper",
+    clientSideFolderPath: "../clientside",
+    clientSideBasePath: "/public",
+    login: undefined,
+    iUserStore: undefined,
+  };
+  private login: Login;
+  private userStore: iUserStore;
+
+  constructor(deHelperOptions?: DeHelperOptions) {
+    this.options = deHelperOptions || this._defaultOptions;
+    if (deHelperOptions !== undefined) {
+      this.options.basePath =
+        deHelperOptions.basePath || this._defaultOptions.basePath;
+      this.options.clientSideFolderPath =
+        deHelperOptions.clientSideFolderPath ||
+        this._defaultOptions.clientSideFolderPath;
+      this.options.clientSideBasePath =
+        deHelperOptions.clientSideBasePath ||
+        this._defaultOptions.clientSideBasePath;
+      this.options.iUserStore =
+        deHelperOptions.iUserStore || this._defaultOptions.iUserStore;
+    }
+    // merge the options passed to the DeHelper
+    //Object.assign(options, this.options);
+    this._init();
+  }
+
+  private _init() {
+    if (this.options.iUserStore === undefined) {
+      //let userStoreFileOptions: UserStoreOptions = undefined
+      this.options.iUserStore = new UserStoreFile(undefined);
+    }
+    let loginOptions: LoginOptions = {
+      userStore: this.options.iUserStore,
+      loginBasePath: path.posix.join(this.options.basePath!, "login"),
+    };
+    this.login = new Login(loginOptions);
+  }
+
+  private clientSideFileHandler(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
+    var filePath = req.path;  //req.baseUrl + req.path;  //Just use req.path as it is already prefixed with the base path
+    if (
+      fs.existsSync(
+        path.join(__dirname, this.options.clientSideFolderPath!, filePath)
+      ) === true
+    ) {
+      res.sendFile(filePath, {
+        root: path.join(__dirname, this.options.clientSideFolderPath!),
+      });
+    } else {
+      res.sendStatus(404);
+    }
   }
 
   /**
-   * Attaches dehelper to a server.
+   * Attaches dehelper to Express.
    *
-   * @param srv - server
-   * @param opts - options passed to dehelper
+   * @param app - Express Instance
    * @return self
    */
-  public attach(
-    srv: http.Server | HTTPSServer | Http2SecureServer,
-    options: Partial<DeHelperOptions> = {}
-  ): this {
-    if ("function" == typeof srv) {
-      const msg =
-        "You are trying to attach dehelper to an express " +
-        "request handler function. Please pass a http.Server instance.";
-      throw new Error(msg);
-    }
-
-    // merge the options passed to the DeHelper
-    Object.assign(options, this.options);
-    // set dehelper path to `/dehelper`
-    options.path = options.path || this._defaultPath;
-
-    //this.initEngine(srv, opts);
+  public attachExpress(app: Express): this {
+    let clientSideBasePath = path.posix.join(
+      this.options.basePath!,
+      this.options.clientSideBasePath!
+    );
+    app.use(clientSideBasePath, this.clientSideFileHandler.bind(this));
+    //if(this.options.useLogin === true) {
+    this.login.attachExpress(app);
+    //}
 
     return this;
   }
