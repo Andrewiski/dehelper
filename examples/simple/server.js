@@ -47,7 +47,7 @@ app.disable('x-powered-by');
 
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
-
+app.use(favicon(__dirname + '/public/images/favicon.ico'));
 
 let deHelperLoginConfig = {}
 

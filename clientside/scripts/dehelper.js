@@ -35,7 +35,8 @@
                 menuItems: [],
                 subMenuItems: [],
                 currentMenu: null
-            }
+            },
+            templateCache: []
         },
         appInit: function (options) {
             var deferred = $.Deferred();
@@ -47,10 +48,10 @@
                     onLoginComplete: null,
                     onLogoutComplete: null,
                     baseUrl: "/dehelper/",
-                    templateLogin: 'templates/login.htm', 
-                    templateModal: 'templates/default.modal.htm',
-                    templateError: 'templates/error.htm', 
-                    templateMenuItems: 'templates/menuItems.htm',
+                    templateLogin: 'public/templates/login.htm', 
+                    templateModal: 'public/templates/default.modal.htm',
+                    templateError: 'public/templates/error.htm', 
+                    templateMenuItems: 'public/templates/menuItems.htm',
                 }
 
                 if(options){
@@ -154,21 +155,27 @@
                 case "menuitems":
                     url = url + $.dehelper.options.templateMenuItems;
             }
-            
-            $.ajax({
-                url: url,
-                data: {},
-                success: function (data, textStatus, jqXHR) {
-                    myTemplate.data = data;
-                    myTemplate.isLoaded = true;
-                    $.logToConsole('Refreshed Template Cache $.dehelper.getTemplateCache ' + templateName + ' : ' + myTemplate.url);
-                    deferred.resolve(myTemplate.data);
-                },
-                error: function (jqXHR, textStatus, errorThrown) {
-                    $.logToConsole('Error fetching Template Cache $.dehelper.getTemplateCache ' + templateName + ' : ' + myTemplate.url + ' ' + textStatus + ' ' + errorThrown);
-                    deferred.reject(jqXHR, textStatus, errorThrown);
-                }
-            });
+            if(myTemplate){
+                deferred.resolve(myTemplate.data);
+            }
+            else{
+                $.dehelper.common.templateCache[templateName] = {url: url, data:null, isLoaded:false};
+                myTemplate = $.dehelper.common.templateCache[templateName];
+                $.ajax({
+                    url: url,
+                    data: {},
+                    success: function (data, textStatus, jqXHR) {
+                        myTemplate.data = data;
+                        myTemplate.isLoaded = true;
+                        $.dehelper.logToConsole('Refreshed Template Cache $.dehelper.getTemplateCache ' + templateName + ' : ' + myTemplate.url);
+                        deferred.resolve(myTemplate.data);
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        $.dehelper.logToConsole('Error fetching Template Cache $.dehelper.getTemplateCache ' + templateName + ' : ' + myTemplate.url + ' ' + textStatus + ' ' + errorThrown);
+                        deferred.reject(jqXHR, textStatus, errorThrown);
+                    }
+                });
+            }
             return deferred.promise();
         },
 
@@ -426,7 +433,7 @@
                 
                 // Get markup for login and show it as a dialog
 
-                $.when($.dehelper.getTemplate('defaultModal'), $.dehelper.getTemplate('login') ).done(
+                $.when($.dehelper.getTemplate('modal'), $.dehelper.getTemplate('login') ).done(
                     function (defaultModalhtml, loginhtml) {
                         $dialogElement = $(defaultModalhtml);
                         $dialogElement.find('.modal-body').html(loginhtml);
@@ -453,7 +460,7 @@
                             })
                             .end();
                         
-                        $loginModal = new bootstrap.Modal($dialogElement, myOptions.dialogOptions);
+                        $loginModal = new bootstrap.Modal($dialogElement, myOptions.modalOptions);
                         $loginModal.show();
                         
                         setDialogValues();
@@ -1263,13 +1270,19 @@
 
         getMenuItems: function () {
             var deferred = $.Deferred();
-            $.dehelper.ajax({
-                method: 'GET',
-                url: $.dehelper.options.baseUrl + '/PageContent/MenuItems'
-            }).then(
-                function (menuItems) {
+            $.when(
+                $.dehelper.ajax({
+                    method: 'GET',
+                    url: $.dehelper.options.baseUrl + 'pageContent/menuItems'
+                }), 
+                $.dehelper.getTemplate("menuitems")
+            ).then(
+                function (ajaxResult, template) {
+                    let menuItems = ajaxResult[0];
                     $.dehelper.common.menu.menuItems = menuItems;
-                    let $menuItemTemplate = $(".menuItemTemplate").find(".menuItem");
+                    
+                    let $template = $(template);
+                    let $menuItemTemplate = $template.find(".menuItemTemplate").find(".menuItem");
                     let $menuItemsContainer = $(".menuItems");
                     $menuItemsContainer.empty();
                     $.each(menuItems, function (index, item) {
@@ -1289,17 +1302,17 @@
                     
                     if($.dehelper.isUserLoggedIn === true){
                         //add Login MenuItem menuItemLoginTemplate
-                        let $logoutMenuItem = $(".menuItemLogoutTemplate").find(".menuItem").clone();
+                        let $logoutMenuItem = $template.find(".menuItemLogoutTemplate").find(".menuItem").clone();
                         $menuItemsContainer.append($logoutMenuItem);
                     }else{
                         //add Login MenuItem menuItemLoginTemplate
-                        let $loginMenuItem = $(".menuItemLoginTemplate").find(".menuItem").clone();
+                        let $loginMenuItem = $template.find(".menuItemLoginTemplate").find(".menuItem").clone();
                         $menuItemsContainer.append($loginMenuItem);
                     }
                     deferred.resolve();
                 },
                 function (reason) {
-                    $.logToConsole("Error: dehelper.getMenuItems failed " + reason);
+                    $.dehelper.logToConsole("Error: dehelper.getMenuItems failed " + reason);
                     deferred.reject();
                 }
             );
@@ -1350,7 +1363,7 @@
                         
                     },
                     function(err){
-                        $.logToConsole("ERROR: showPageContent contentType=widget ", err.toString());
+                        $.dehelper.logToConsole("ERROR: showPageContent contentType=widget ", err.toString());
                         var objError = $.dehelper.createErrorFromScriptException(err, "Server error during dehelper.loadWidget.");
                         $.dehelper.displayError(objError);
                     }
@@ -1374,12 +1387,12 @@
             var deferred = $.Deferred();
             var url = '';
             if (options.pageContentGuid) {
-                url = $.dehelper.options.baseUrl + 'PageContent/PageContentGuid/' + options.pageContentGuid;
+                url = $.dehelper.options.baseUrl + 'pageContent/pageContentGuid/' + options.pageContentGuid;
             }else if (options.linkUrl) {
-                url = $.dehelper.options.baseUrl + 'PageContent/LinkUrl/' + options.linkUrl;
+                url = $.dehelper.options.baseUrl + 'pageContent/linkUrl/' + options.linkUrl;
             }
             else {
-                url = $.dehelper.options.baseUrl + 'PageContent/PageContentGuid/00000000-0000-0000-0000-000000000001' ; //Home Page
+                url = $.dehelper.options.baseUrl + 'pageContent/pageContentGuid/00000000-0000-0000-0000-000000000001' ; //Home Page
             }
             $.dehelper.ajax({
                 method: 'GET',
@@ -1389,7 +1402,7 @@
                     deferred.resolve(page);
                 },
                 function (reason) {
-                    $.logToConsole("Error: dehelper.getPageContent failed " + reason);
+                    $.dehelper.logToConsole("Error: dehelper.getPageContent failed " + reason);
                     deferred.reject();
                 }
             );
@@ -1406,7 +1419,7 @@
 
                 },
                 function(err){
-                    $.logToConsole("ERROR: menuItemClick", err.toString());
+                    $.dehelper.logToConsole("ERROR: menuItemClick", err.toString());
                     var objError = $.dehelper.createErrorFromScriptException(err, "Server error during dehelper.loadWidget.");
                     $.dehelper.displayError(objError);
                 }
@@ -1440,22 +1453,22 @@
             var myOptions = $.extend(defaultOptions, options);
 
             if (options.error == undefined || options.error == null) {
-                options.error = $.uisptools.createErrorFromScriptException("Default Error Handler Error", "Default Error Handler Error");
+                options.error = $.dehelper.createErrorFromScriptException("Default Error Handler Error", "Default Error Handler Error");
             }
 
-            var $dialogElement = $('#uisptools_error_dialog');  //If its already added to the page select it
+            var $dialogElement = $('#dehelper_error_dialog');  //If its already added to the page select it
             var $errorModal = null;
             var onRetryClick = function () {
                 trigger = "retry"
-                $dialogElement.find('#uisptools_error_dialog_error').hide();
-                $.logToConsole("Error Dialog Retry Button Clicked");
+                $dialogElement.find('#dehelper_error_dialog_error').hide();
+                $.dehelper.logToConsole("Error Dialog Retry Button Clicked");
                 //$dialogElement.dialog("close");
                 $errorModal.hide();
                 myDefer.resolve("Retry");
             }
             var onCancelClick = function () {
                 trigger = "cancelclick";
-                $.logToConsole("Error Dialog Cancel Button Clicked");
+                $.dehelper.logToConsole("Error Dialog Cancel Button Clicked");
                 if (myOptions.showCancel == false) {
                     myDefer.resolve("User Canceled Error Dialog");
                 } else {
@@ -1467,7 +1480,7 @@
             }
             var onOkClick = function () {
                 trigger = "okclick";
-                $.logToConsole("Error Dialog Ok Button Clicked");
+                $.dehelper.logToConsole("Error Dialog Ok Button Clicked");
                 if (myOptions.showCancel == false) {
                     myDefer.resolve("User Ok Error Dialog");
                 } else {
@@ -1480,9 +1493,9 @@
 
             var setDialogValues = function () {
                 trigger = "cancel";
-                $dialogElement.find("#uisptools_error_dialog_errorMessageDetails_displayedErrorMessage").text(myOptions.error.message);
-                $dialogElement.find("#uisptools_error_dialog_errorMessageDetails_ExceptionType").text(myOptions.error.exceptionType);
-                $dialogElement.find("#uisptools_error_dialog_errorMessageDetails_ExceptionMessage").text(myOptions.error.exceptionMessage);
+                $dialogElement.find("#dehelper_error_dialog_errorMessageDetails_displayedErrorMessage").text(myOptions.error.message);
+                $dialogElement.find("#dehelper_error_dialog_errorMessageDetails_ExceptionType").text(myOptions.error.exceptionType);
+                $dialogElement.find("#dehelper_error_dialog_errorMessageDetails_ExceptionMessage").text(myOptions.error.exceptionMessage);
                 var stacktrace = myOptions.error.stackTrace;
 
                 //TODO: This approach for displaying the stack trace is a problem waiting to happen if the stack trace contains markup
@@ -1491,54 +1504,54 @@
                 //if (typeof stacktrace === 'string') {
                 //    stacktrace = stacktrace.replace(/\n/gi, '<br/>');
                 //}
-                //$("#uisptools_error_dialog_errorMessageDetails_StackTrace").html(stacktrace);                
-                $dialogElement.find("#uisptools_error_dialog_errorMessageDetails_StackTrace").text(stacktrace);
-                $dialogElement.find('#uisptools_error_dialog_messageContent_Default').hide();
-                $dialogElement.find('#uisptools_error_dialog_messageContent_NoInternet').hide();
-                $dialogElement.find('#uisptools_error_dialog_messageContent_AccessDenied').hide();
-                $dialogElement.find('#uisptools_error_dialog_messageContent_NotFound').hide();
+                //$("#dehelper_error_dialog_errorMessageDetails_StackTrace").html(stacktrace);                
+                $dialogElement.find("#dehelper_error_dialog_errorMessageDetails_StackTrace").text(stacktrace);
+                $dialogElement.find('#dehelper_error_dialog_messageContent_Default').hide();
+                $dialogElement.find('#dehelper_error_dialog_messageContent_NoInternet').hide();
+                $dialogElement.find('#dehelper_error_dialog_messageContent_AccessDenied').hide();
+                $dialogElement.find('#dehelper_error_dialog_messageContent_NotFound').hide();
                 switch (myOptions.error.statusCode) {
                     case 0:
-                        $dialogElement.find('#uisptools_error_dialog_messageContent_NoInternet').show();
+                        $dialogElement.find('#dehelper_error_dialog_messageContent_NoInternet').show();
                         break;
                     case 402:
-                        $dialogElement.find('#uisptools_error_dialog_messageContent_AccessDenied').show();
+                        $dialogElement.find('#dehelper_error_dialog_messageContent_AccessDenied').show();
                         break;
                     case 404:
-                        $dialogElement.find('#uisptools_error_dialog_messageContent_NotFound').show();
+                        $dialogElement.find('#dehelper_error_dialog_messageContent_NotFound').show();
                         break;
                     default:
-                        $dialogElement.find('#uisptools_error_dialog_messageContent_Default').show();
+                        $dialogElement.find('#dehelper_error_dialog_messageContent_Default').show();
                         break;
                 }
-                $dialogElement.find('#uisptools_error_dialog_messageContent').show();
-                $dialogElement.find('#uisptools_error_dialog_errorMessage_details').hide();
+                $dialogElement.find('#dehelper_error_dialog_messageContent').show();
+                $dialogElement.find('#dehelper_error_dialog_errorMessage_details').hide();
 
             }
             var toggleErrorDetails = function (){
-                $dialogElement.find('#uisptools_error_dialog_messageContent').toggle();
-                $dialogElement.find('#uisptools_error_dialog_errorMessage_details').toggle();
+                $dialogElement.find('#dehelper_error_dialog_messageContent').toggle();
+                $dialogElement.find('#dehelper_error_dialog_errorMessage_details').toggle();
             }
             var initDialog = function () {
-                $dialogElement.find('#uisptools_error_dialog_btnRetry').off("click.uisptools");
-                $dialogElement.find('#uisptools_error_dialog_btnCancel').off("click.uisptools");
-                $dialogElement.find('#uisptools_error_dialog_btnOk').off("click.uisptools");
-                $dialogElement.find('#uisptools_error_dialog_btnRetry').on("click.uisptools", onRetryClick);
-                $dialogElement.find('#uisptools_error_dialog_btnCancel').on("click.uisptools", onCancelClick);
-                $dialogElement.find('#uisptools_error_dialog_btnOk').on("click.uisptools", onOkClick);
+                $dialogElement.find('#dehelper_error_dialog_btnRetry').off("click.dehelper");
+                $dialogElement.find('#dehelper_error_dialog_btnCancel').off("click.dehelper");
+                $dialogElement.find('#dehelper_error_dialog_btnOk').off("click.dehelper");
+                $dialogElement.find('#dehelper_error_dialog_btnRetry').on("click.dehelper", onRetryClick);
+                $dialogElement.find('#dehelper_error_dialog_btnCancel').on("click.dehelper", onCancelClick);
+                $dialogElement.find('#dehelper_error_dialog_btnOk').on("click.dehelper", onOkClick);
                 if (myOptions.showRetry == false) {
-                    $dialogElement.find('#uisptools_error_dialog_btnRetry').hide();
+                    $dialogElement.find('#dehelper_error_dialog_btnRetry').hide();
                 }
                 if (myOptions.showCancel == false) {
-                    $dialogElement.find('#uisptools_error_dialog_btnCancel').hide();
+                    $dialogElement.find('#dehelper_error_dialog_btnCancel').hide();
                 }
                 if (myOptions.showOk == false) {
-                    $dialogElement.find('#uisptools_error_dialog_btnOk').hide();
+                    $dialogElement.find('#dehelper_error_dialog_btnOk').hide();
                 }
                 if (myOptions.showDetails == false) {
-                    $dialogElement.find('#uisptools_error_dialog_btnShowDetails').hide();
+                    $dialogElement.find('#dehelper_error_dialog_btnShowDetails').hide();
                 }
-                $dialogElement.find('#uisptools_error_dialog_btnShowDetails').on("click",toggleErrorDetails);
+                $dialogElement.find('#dehelper_error_dialog_btnShowDetails').on("click",toggleErrorDetails);
 
                 setDialogValues();
                 $errorModal.show();
@@ -1546,9 +1559,9 @@
 
             if ($dialogElement.length == 0) {
                 
-                $.uisptools.getTemplate('error').then(
+                $.dehelper.getTemplate('error').then(
                     function (html) {
-                        //$dialogElement = $('<div id="uisptools_error_dialog"></div>'); 
+                        //$dialogElement = $('<div id="dehelper_error_dialog"></div>'); 
                         $dialogElement = $(html); 
                         //$dialogElement.html(html);
                         //let dialogOptions = {backdrop:true, keyboard: true, focus:true};
@@ -1557,7 +1570,7 @@
                         initDialog();
                     },
                     function () {
-                        $.logToConsole("Error loading Error Dialog HTML");
+                        $.dehelper.logToConsole("Error loading Error Dialog HTML");
                     }
                 );
 

@@ -16,44 +16,40 @@ export type PageContentDeleteOptions = {
 };
 
 export type PageContent = {
-    "content" : string,
-    "contentType" : string,
-    "createdBy" : string,
-    "createdDate" : Date,
-    "deleted" : boolean,
-    "displayOrder" : number,
-    "extendedData" : any,
-    "linkMenuDisplay" : boolean,
-    "linkStatus" : number,
-    "linkTarget" : string,
-    "linkText" : string,
-    "linkUrl" : string,
-    "pageContentGuid" : string,
-    "pageDescription" : string,
-    "pageKeywords" : string,
-    "pageName" : string,
-    "pageTitle" : string,
-    "parentPageContentGuid" : string | null,
-    "roleId" : string,
-    "updatedBy" : string,
-    "updatedDate" : Date
+  content: string;
+  contentType: string;
+  createdBy: string;
+  createdDate: Date;
+  deleted: boolean;
+  displayOrder: number;
+  extendedData: any;
+  linkMenuDisplay: boolean;
+  linkStatus: number;
+  linkTarget: string;
+  linkText: string;
+  linkUrl: string;
+  pageContentGuid: string;
+  pageDescription: string;
+  pageKeywords: string;
+  pageName: string;
+  pageTitle: string;
+  parentPageContentGuid: string | null;
+  roleId: string;
+  updatedBy: string;
+  updatedDate: Date;
 };
 
-export type PageContentStoreOptions = {
-  
-};
+export type PageContentStoreOptions = {};
 
-export type PageContentStoreCreateOptions = {
-  
-};
+export type PageContentStoreCreateOptions = {};
 
 export type PageContentCreateOptions = {
   pageContent: PageContent;
 };
 
 export type PageContentGetMenuItemsOptions = {
-  
-}
+  parentPageContentGuid: string;
+};
 
 /**
     * This is the description of the interface
@@ -67,35 +63,31 @@ export type PageContentGetMenuItemsOptions = {
 
 */
 export interface iPageContentStore {
-  pageContent_create(
-    options: PageContentCreateOptions
-  ): Promise<PageContent>;
+  pageContent_create(options: PageContentCreateOptions): Promise<PageContent>;
   pageContent_upsert(pageContent: PageContent): Promise<PageContent>;
-  pageContent_get(
-    options: PageContentGetOptions
-  ): Promise<PageContent | null>;
+  pageContent_get(options: PageContentGetOptions): Promise<PageContent | null>;
   pageContent_delete(options: PageContentDeleteOptions): Promise<void>;
-  pageContent_getByLinkUrl(options: PageContentGetByLinkUrlOptions): Promise<PageContent | null>;
-  pageContent_getMenuItems(options: PageContentGetMenuItemsOptions): Promise<Array<PageContent> | null>;
-  
-  
+  pageContent_getByLinkUrl(
+    options: PageContentGetByLinkUrlOptions
+  ): Promise<PageContent | null>;
+  pageContent_getMenuItems(
+    options: PageContentGetMenuItemsOptions
+  ): Promise<Array<PageContent>>;
 }
 
 export class PageContentStore implements iPageContentStore {
-  constructor(pageContentStoreCreateOptions: PageContentStoreCreateOptions | undefined) {
+  constructor(
+    pageContentStoreCreateOptions: PageContentStoreCreateOptions | undefined
+  ) {
     let pageContentStoreOptions: PageContentStoreOptions;
     if (pageContentStoreCreateOptions === undefined) {
       pageContentStoreCreateOptions = {};
     }
-    pageContentStoreOptions = {
-      
-    };
+    pageContentStoreOptions = {};
     this.pageContentStoreOptions = pageContentStoreOptions;
   }
 
-  public readonly defaultPageContentStoreOptions: PageContentStoreOptions = {
-    
-  };
+  public readonly defaultPageContentStoreOptions: PageContentStoreOptions = {};
 
   public readonly pageContentStoreOptions: PageContentStoreOptions;
 
@@ -104,11 +96,10 @@ export class PageContentStore implements iPageContentStore {
   ): Promise<PageContent> {
     return new Promise<PageContent>((resolve, reject) => {
       try {
-        
         if (options.pageContent !== undefined) {
-          if(options.pageContent.pageContentGuid === undefined){
+          if (options.pageContent.pageContentGuid === undefined) {
             options.pageContent.pageContentGuid = uuidv4();
-          };
+          }
         }
         resolve(options.pageContent);
       } catch (ex) {
@@ -120,35 +111,33 @@ export class PageContentStore implements iPageContentStore {
   }
 
   /** upsert an Page Content into the Store */
-  public pageContent_upsert(
-    pageContent: PageContent
-  ): Promise<PageContent> {
+  public pageContent_upsert(pageContent: PageContent): Promise<PageContent> {
     throw new Error("Method not implemented.");
   }
-  
+
   /** delete Page Content from the Store */
-  public pageContent_delete(
-    options: PageContentDeleteOptions
-  ): Promise<void> {
+  public pageContent_delete(options: PageContentDeleteOptions): Promise<void> {
     throw new Error("Method not implemented.");
   }
- 
+
   /** retrive an Page Content from the Store */
   public pageContent_get(
     options: PageContentGetOptions
   ): Promise<PageContent | null> {
     throw new Error("Method not implemented.");
   }
-  
+
   /** retrive an Page Content from the Store using the LinkUrl */
-  public pageContent_getByLinkUrl(options: PageContentGetByLinkUrlOptions): Promise<PageContent | null> {
+  public pageContent_getByLinkUrl(
+    options: PageContentGetByLinkUrlOptions
+  ): Promise<PageContent | null> {
     throw new Error("Method not implemented.");
   }
 
   /** get an User from the Store */
   public pageContent_getMenuItems(
     options: PageContentGetMenuItemsOptions
-  ): Promise<Array<PageContent> | null> {
+  ): Promise<Array<PageContent>> {
     throw new Error("Method not implemented.");
-  }  
+  }
 }

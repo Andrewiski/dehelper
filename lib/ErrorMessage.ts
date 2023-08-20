@@ -48,11 +48,11 @@ export class ErrorMessage {
           }
         } else {
           if (options.request) {
-            if (options.request instanceof Request) {
-              this.connectionInfo = Helper.getExpressRequestConnectionInfo(
-                options.request
-              );
-            }
+            //if (options.request instanceof Request) {
+            this.connectionInfo = Helper.getExpressRequestConnectionInfo(
+              options.request
+            );
+            //}
           }
         }
         this.error = options;

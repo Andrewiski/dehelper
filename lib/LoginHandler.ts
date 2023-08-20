@@ -14,25 +14,25 @@ import { ErrorMessage } from "./ErrorMessage";
 import { Helper } from "./Helper";
 const debug = debugModule("DeHelper:Login");
 
-export type LoginOptions = {
-  loginBasePath: string;
+export type LoginHandlerOptions = {
+  loginHandlerBasePath: string;
   userStore: iUserStore;
 };
 
-export class Login {
-  private options: LoginOptions;
+export class LoginHandler {
+  private options: LoginHandlerOptions;
 
-  constructor(loginOptions: LoginOptions) {
-    this.options = loginOptions;
+  constructor(loginHandlerOptions: LoginHandlerOptions) {
+    this.options = loginHandlerOptions;
   }
 
   public attachExpress(app: express.Express) {
     app.use(
-      path.join("/", this.options.loginBasePath, "/login"),
+      path.join("/", this.options.loginHandlerBasePath, "/login"),
       this.loginHandler.bind(this)
     );
     app.use(
-      path.join("/", this.options.loginBasePath, "/logout"),
+      path.join("/", this.options.loginHandlerBasePath, "/logout"),
       this.logoutHandler.bind(this)
     );
   }

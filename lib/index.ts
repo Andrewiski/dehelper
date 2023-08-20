@@ -27,7 +27,24 @@ import type {
   UserCreateSuperUserOptions,
 } from "./UserStore";
 import { UserStoreFile } from "./UserStoreFile";
-import { Login, LoginOptions } from "./Login";
+import { LoginHandler, LoginHandlerOptions } from "./LoginHandler";
+import type {
+  PageContentStore,
+  iPageContentStore,
+  PageContentStoreCreateOptions,
+  PageContentDeleteOptions,
+  PageContentGetByLinkUrlOptions,
+  PageContentGetMenuItemsOptions,
+  PageContentGetOptions,
+  PageContentCreateOptions,
+  PageContentStoreOptions,
+  PageContent,
+} from "./PageContentStore";
+import {
+  PageContentHandler,
+  PageContentHandlerOptions,
+} from "./PageContentHandler";
+import { PageContentStoreFile } from "./PageContentStoreFile";
 import { ErrorMessage } from "./ErrorMessage";
 const debug = debugModule("DeHelper");
 const clientVersion = require("../package.json").version;
@@ -37,7 +54,9 @@ export type DeHelperOptions = {
   clientSideBasePath?: string;
   clientSideFolderPath?: string;
   iUserStore?: iUserStore;
-  login?: LoginOptions;
+  loginHandler?: LoginHandlerOptions;
+  pageContentHandler?: PageContentHandlerOptions;
+  iPageContentStore?: iPageContentStore;
 };
 
 /**
@@ -62,10 +81,13 @@ export class DeHelper {
     basePath: "/dehelper",
     clientSideFolderPath: "../clientside",
     clientSideBasePath: "/public",
-    login: undefined,
+    loginHandler: undefined,
     iUserStore: undefined,
+    pageContentHandler: undefined,
+    iPageContentStore: undefined,
   };
-  private login: Login;
+  private loginHandler: LoginHandler;
+  private pageContentHandler: PageContentHandler;
   private userStore: iUserStore;
 
   constructor(deHelperOptions?: DeHelperOptions) {
@@ -92,11 +114,23 @@ export class DeHelper {
       //let userStoreFileOptions: UserStoreOptions = undefined
       this.options.iUserStore = new UserStoreFile(undefined);
     }
-    let loginOptions: LoginOptions = {
+    let loginHandlerOptions: LoginHandlerOptions = {
       userStore: this.options.iUserStore,
-      loginBasePath: path.posix.join(this.options.basePath!, "login"),
+      loginHandlerBasePath: path.posix.join(this.options.basePath!, "login"),
     };
-    this.login = new Login(loginOptions);
+    this.loginHandler = new LoginHandler(loginHandlerOptions);
+    if (this.options.iPageContentStore === undefined) {
+      //let userStoreFileOptions: UserStoreOptions = undefined
+      this.options.iPageContentStore = new PageContentStoreFile(undefined);
+    }
+    let pageContentHandlerOptions: PageContentHandlerOptions = {
+      pageContentStore: this.options.iPageContentStore,
+      pageContentHandlerBasePath: path.posix.join(
+        this.options.basePath!,
+        "pageContent"
+      ),
+    };
+    this.pageContentHandler = new PageContentHandler(pageContentHandlerOptions);
   }
 
   private clientSideFileHandler(
@@ -104,7 +138,7 @@ export class DeHelper {
     res: Response,
     next: NextFunction
   ) {
-    var filePath = req.path;  //req.baseUrl + req.path;  //Just use req.path as it is already prefixed with the base path
+    var filePath = req.path; //req.baseUrl + req.path;  //Just use req.path as it is already prefixed with the base path
     if (
       fs.existsSync(
         path.join(__dirname, this.options.clientSideFolderPath!, filePath)
@@ -131,7 +165,8 @@ export class DeHelper {
     );
     app.use(clientSideBasePath, this.clientSideFileHandler.bind(this));
     //if(this.options.useLogin === true) {
-    this.login.attachExpress(app);
+    this.loginHandler.attachExpress(app);
+    this.pageContentHandler.attachExpress(app);
     //}
 
     return this;
@@ -139,11 +174,13 @@ export class DeHelper {
 }
 
 module.exports = (options: DeHelperOptions) => new DeHelper(options);
-module.exports.Login = Login;
+module.exports.LoginHandler = LoginHandler;
 module.exports.UserStoreFile = UserStoreFile;
+module.exports.PageContentHandler = PageContentHandler;
+module.exports.PageContentStoreFile = PageContentStoreFile;
 
 export {
-  Login,
+  LoginHandler,
   LoginData,
   iUserStore,
   User,
@@ -165,4 +202,16 @@ export {
   PasswordHashCreateOptions,
   UserCreateSuperUser,
   UserCreateSuperUserOptions,
+  PageContentStore,
+  iPageContentStore,
+  PageContentStoreCreateOptions,
+  PageContentDeleteOptions,
+  PageContentGetByLinkUrlOptions,
+  PageContentGetMenuItemsOptions,
+  PageContentGetOptions,
+  PageContentCreateOptions,
+  PageContentStoreOptions,
+  PageContent,
+  PageContentHandler,
+  PageContentStoreFile,
 };
